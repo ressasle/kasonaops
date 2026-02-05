@@ -1,0 +1,223 @@
+"use client";
+
+import { useState } from "react";
+import { Loader2, Save, SkipForward, Layout, FileOutput, Radio, Activity } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+
+type InvestorProfileFormProps = {
+    companyId: number;
+    onSuccess: (portfolioId: string) => void;
+    onSkip?: () => void;
+};
+
+export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorProfileFormProps) {
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const [formData, setFormData] = useState({
+        portfolio_name: "Primary Portfolio",
+        portfolio_id: `port-${Math.random().toString(36).substring(2, 7)}`,
+        product_status: "to create" as const,
+        output_format: "Newsletter" as const,
+        output_frequency: "monthly" as const,
+        risk_appetite: 50, // 0-100
+        investment_philosophy: "",
+        notes: "",
+    });
+
+    const handleChange = (field: string, value: any) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        setError(null);
+
+        try {
+            const payload = {
+                company_id: companyId,
+                portfolio_id: formData.portfolio_id,
+                portfolio_name: formData.portfolio_name,
+                product_status: formData.product_status,
+                output_format: formData.output_format,
+                output_frequency: formData.output_frequency,
+                risk_appetite: formData.risk_appetite,
+                investment_philosophy: formData.investment_philosophy,
+                notes: formData.notes,
+            };
+
+            const response = await fetch("/api/investor-profiles", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Failed to save investor profile");
+            }
+
+            onSuccess(formData.portfolio_id);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Card className="border-primary/20 bg-background/50 backdrop-blur-xl">
+            <CardHeader>
+                <div className="flex items-center gap-2 text-primary mb-2">
+                    <Activity className="h-5 w-5" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Step 2: Investor DNA</span>
+                </div>
+                <CardTitle>Portfolio Configuration</CardTitle>
+                <CardDescription>
+                    Define the investment mandate and delivery preferences for this portfolio.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Layout className="h-4 w-4 text-muted-foreground" />
+                                Portfolio Name
+                            </Label>
+                            <Input
+                                placeholder="e.g. Family Trust"
+                                value={formData.portfolio_name}
+                                onChange={(e) => handleChange("portfolio_name", e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Activity className="h-4 w-4 text-muted-foreground" />
+                                Portfolio ID (Slug)
+                            </Label>
+                            <Input
+                                placeholder="e.g. family-trust"
+                                value={formData.portfolio_id}
+                                onChange={(e) => handleChange("portfolio_id", e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Risk Slider */}
+                    <div className="space-y-4 rounded-xl border border-border/50 bg-black/20 p-4">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-base">Risk Appetite</Label>
+                            <div className="font-mono text-xl font-bold text-primary">
+                                {formData.risk_appetite}
+                                <span className="text-sm font-normal text-muted-foreground ml-2">
+                                    {formData.risk_appetite < 30 ? "(Conservative)" : formData.risk_appetite > 70 ? "(Aggressive)" : "(Moderate)"}
+                                </span>
+                            </div>
+                        </div>
+                        <Slider
+                            value={formData.risk_appetite}
+                            onChange={(val) => handleChange("risk_appetite", val)}
+                            max={100}
+                            step={1}
+                            className="py-2"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground uppercase font-semibold">
+                            <span>Defensive</span>
+                            <span>Balanced</span>
+                            <span>Growth</span>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <FileOutput className="h-4 w-4 text-muted-foreground" />
+                                Output Format
+                            </Label>
+                            <select
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                value={formData.output_format}
+                                onChange={(e) => handleChange("output_format", e.target.value)}
+                            >
+                                <option value="Newsletter">Newsletter (Email)</option>
+                                <option value="Podcast">Podcast (Audio)</option>
+                                <option value="Other">Custom Portal</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Radio className="h-4 w-4 text-muted-foreground" />
+                                Update Frequency
+                            </Label>
+                            <select
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                value={formData.output_frequency}
+                                onChange={(e) => handleChange("output_frequency", e.target.value)}
+                            >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="bi-weekly">Bi-Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Investment Philosophy</Label>
+                        <Input
+                            placeholder="e.g. Dividend Growth, Value Investing..."
+                            value={formData.investment_philosophy}
+                            onChange={(e) => handleChange("investment_philosophy", e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Mandate Notes</Label>
+                        <Textarea
+                            placeholder="Specific constraints, benchmarks, or goals..."
+                            value={formData.notes}
+                            onChange={(e) => handleChange("notes", e.target.value)}
+                            rows={3}
+                        />
+                    </div>
+
+                    {error && <div className="text-sm text-red-500 font-medium bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</div>}
+
+                    <div className="flex justify-between pt-4">
+                        {onSkip ? (
+                            <Button type="button" variant="ghost" onClick={onSkip} className="hover:bg-primary/5">
+                                <SkipForward className="mr-2 h-4 w-4" />
+                                Skip Step
+                            </Button>
+                        ) : (
+                            <div />
+                        )}
+                        <Button type="submit" disabled={isSaving} className="min-w-[140px] bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Continue to Upload
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}

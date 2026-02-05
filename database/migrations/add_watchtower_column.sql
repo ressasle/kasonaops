@@ -1,0 +1,2 @@
+ALTER TABLE kasona_portfolio_assets
+ADD COLUMN IF NOT EXISTS watchtower BOOLEAN DEFAULT FALSE;

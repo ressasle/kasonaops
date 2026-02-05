@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kasona Operations Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,500;1,700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">K</div>
+          <div>
+            <div class="brand-title">Kasona Ops</div>
+            <div class="brand-subtitle">CRM + Fulfillment</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="nav-item active" href="#dashboard">Dashboard</a>
+          <a class="nav-item" href="#sales">Sales</a>
+          <a class="nav-item" href="#operations">Operations</a>
+          <a class="nav-item" href="#tracking">Tracking</a>
+          <a class="nav-item" href="#tasks">Tasks</a>
+        </nav>
+        <div class="sidebar-card">
+          <div class="label">Today</div>
+          <div class="sidebar-metric">12 active deals</div>
+          <div class="sidebar-meta">3 meetings scheduled</div>
+          <button class="button primary glow">Create customer</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="header">
+          <div>
+            <div class="headline">Operations Command</div>
+            <div class="subhead">Admin, Sales, Operations, Tracking</div>
+          </div>
+          <div class="header-actions">
+            <input class="search" placeholder="Search company, portfolio, or ID" />
+            <button class="button ghost">Sync Supabase</button>
+            <button class="button primary">New task</button>
+          </div>
+        </header>
+
+        <section id="dashboard" class="section">
+          <div class="section-title">Snapshot</div>
+          <div class="grid stats">
+            <div class="card stat">
+              <div class="label">Pipeline Value</div>
+              <div class="value">EUR 182k</div>
+              <div class="delta">+12% vs last month</div>
+            </div>
+            <div class="card stat">
+              <div class="label">Active Portfolios</div>
+              <div class="value">34</div>
+              <div class="delta">5 need review</div>
+            </div>
+            <div class="card stat">
+              <div class="label">Fulfillment SLA</div>
+              <div class="value">97%</div>
+              <div class="delta">2 delayed outputs</div>
+            </div>
+            <div class="card stat">
+              <div class="label">Tasks Due</div>
+              <div class="value">9</div>
+              <div class="delta">3 high priority</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="sales" class="section">
+          <div class="section-title">Sales Pipeline</div>
+          <div class="pipeline">
+            <div class="pipeline-column">
+              <div class="pipeline-title">Lead</div>
+              <div class="pipeline-card">
+                <div class="card-title">Krause Capital</div>
+                <div class="card-meta">Lead Enriched · EUR 18k</div>
+              </div>
+              <div class="pipeline-card">
+                <div class="card-title">NOVA Family Office</div>
+                <div class="card-meta">Lead Captured · EUR 10k</div>
+              </div>
+            </div>
+            <div class="pipeline-column">
+              <div class="pipeline-title">Meeting</div>
+              <div class="pipeline-card">
+                <div class="card-title">Bergmann Holdings</div>
+                <div class="card-meta">Meeting Booked · Thu 14:00</div>
+              </div>
+            </div>
+            <div class="pipeline-column">
+              <div class="pipeline-title">Offer</div>
+              <div class="pipeline-card">
+                <div class="card-title">Aurelia Partners</div>
+                <div class="card-meta">Offer Sent · EUR 32k</div>
+              </div>
+            </div>
+            <div class="pipeline-column">
+              <div class="pipeline-title">Active</div>
+              <div class="pipeline-card">
+                <div class="card-title">Rhein Invest</div>
+                <div class="card-meta">Paid User · Weekly Podcast</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="operations" class="section">
+          <div class="section-title">Operations & Fulfillment</div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Fulfillment Tracker</div>
+                <button class="button outline">View queue</button>
+              </div>
+              <div class="table">
+                <div class="table-row header">
+                  <div>Portfolio</div>
+                  <div>Status</div>
+                  <div>Output</div>
+                  <div>Next Run</div>
+                </div>
+                <div class="table-row">
+                  <div>261031-A</div>
+                  <div class="badge warn">to review</div>
+                  <div>Podcast · weekly</div>
+                  <div>Mon</div>
+                </div>
+                <div class="table-row">
+                  <div>261044-B</div>
+                  <div class="badge ok">created</div>
+                  <div>Newsletter · monthly</div>
+                  <div>Feb 10</div>
+                </div>
+                <div class="table-row">
+                  <div>261090-C</div>
+                  <div class="badge danger">to send</div>
+                  <div>Podcast · weekly</div>
+                  <div>Today</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Onboarding Progress</div>
+                <button class="button outline">View checklist</button>
+              </div>
+              <div class="progress">
+                <div class="progress-item">
+                  <div>
+                    <div class="progress-title">Portfolio ingestion</div>
+                    <div class="progress-meta">7 clients waiting</div>
+                  </div>
+                  <div class="progress-bar"><span style="width: 62%"></span></div>
+                </div>
+                <div class="progress-item">
+                  <div>
+                    <div class="progress-title">Investor DNA completed</div>
+                    <div class="progress-meta">12 completed this week</div>
+                  </div>
+                  <div class="progress-bar"><span style="width: 78%"></span></div>
+                </div>
+                <div class="progress-item">
+                  <div>
+                    <div class="progress-title">Handover delivered</div>
+                    <div class="progress-meta">3 pending recordings</div>
+                  </div>
+                  <div class="progress-bar"><span style="width: 45%"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tracking" class="section">
+          <div class="section-title">Tracking</div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card-title">Conversion Signals</div>
+              <div class="signal-list">
+                <div class="signal">
+                  <div>Waitlist to Meeting</div>
+                  <div class="signal-value">18%</div>
+                </div>
+                <div class="signal">
+                  <div>Meeting to Offer</div>
+                  <div class="signal-value">42%</div>
+                </div>
+                <div class="signal">
+                  <div>Offer to Paid</div>
+                  <div class="signal-value">31%</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">SLA Watchlist</div>
+              <div class="signal-list">
+                <div class="signal">
+                  <div>Delayed outputs</div>
+                  <div class="signal-value warn">2</div>
+                </div>
+                <div class="signal">
+                  <div>Pending QA</div>
+                  <div class="signal-value">5</div>
+                </div>
+                <div class="signal">
+                  <div>Missing portfolio data</div>
+                  <div class="signal-value danger">3</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tasks" class="section">
+          <div class="section-title">Tasks</div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Priority Queue</div>
+                <button class="button outline">Assign</button>
+              </div>
+              <div class="task-list">
+                <div class="task">
+                  <div>
+                    <div class="task-title">Send onboarding pack to 261090</div>
+                    <div class="task-meta">Owner: Jakob · Due today</div>
+                  </div>
+                  <span class="badge danger">high</span>
+                </div>
+                <div class="task">
+                  <div>
+                    <div class="task-title">Ingest portfolio PDF for 261031-A</div>
+                    <div class="task-meta">Owner: Clara · Due tomorrow</div>
+                  </div>
+                  <span class="badge warn">medium</span>
+                </div>
+                <div class="task">
+                  <div>
+                    <div class="task-title">Record handover voice note</div>
+                    <div class="task-meta">Owner: Jakob · Due Friday</div>
+                  </div>
+                  <span class="badge ok">low</span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Customer Table</div>
+                <button class="button outline">Export</button>
+              </div>
+              <div class="table">
+                <div class="table-row header">
+                  <div>Company</div>
+                  <div>Status</div>
+                  <div>Owner</div>
+                  <div>Next Step</div>
+                </div>
+                <div class="table-row">
+                  <div>Rhein Invest</div>
+                  <div class="badge ok">Paid User</div>
+                  <div>Jakob</div>
+                  <div>QA review</div>
+                </div>
+                <div class="table-row">
+                  <div>Aurelia Partners</div>
+                  <div class="badge warn">Offer Sent</div>
+                  <div>Jakob</div>
+                  <div>Follow-up</div>
+                </div>
+                <div class="table-row">
+                  <div>Krause Capital</div>
+                  <div class="badge">Lead Enriched</div>
+                  <div>Clara</div>
+                  <div>Send invite</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+project_id = "xcvgoikedingwnmlpmnf"
+
+[functions.chat-webhook]
+verify_jwt = false
+
+[functions.parse-portfolio]
+verify_jwt = false
+
+[functions.create-customer-user]
+verify_jwt = false
+
+[functions.analyze-executive-video]
+verify_jwt = false

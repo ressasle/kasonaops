@@ -1,0 +1,422 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Kasona Design System - All colors in HSL */
+
+@layer base {
+  :root {
+    /* Kasona Light Mode */
+    --background: 0 0% 98%;
+    --foreground: 264 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 264 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 264 20% 10%;
+
+    --primary: 33 100% 58%; /* #ff9627 - Orange */
+    --primary-foreground: 264 20% 2%;
+
+    --secondary: 195 91% 78%; /* #95ddfa - Cyan Blue */
+    --secondary-foreground: 264 20% 10%;
+
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 195 91% 78%; /* Cyan Blue */
+    --accent-foreground: 264 20% 10%;
+
+    --destructive: 342 90% 67%; /* #f66096 - Pink */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 33 100% 58%;
+
+    --radius: 0.75rem;
+
+    /* Kasona Brand Tokens */
+    --kasona-orange: 33 100% 58%;
+    --kasona-cyan: 195 91% 78%;
+    --kasona-yellow: 48 100% 67%;
+    --kasona-pink: 342 90% 67%;
+    --kasona-dark: 264 20% 2%;
+
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 264 20% 10%;
+    --sidebar-primary: 33 100% 58%;
+    --sidebar-primary-foreground: 264 20% 2%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 264 20% 10%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 33 100% 58%;
+
+    /* Chart colors */
+    --chart-1: 33 100% 58%;
+    --chart-2: 195 91% 78%;
+    --chart-3: 48 100% 67%;
+    --chart-4: 342 90% 67%;
+    --chart-5: 264 20% 50%;
+  }
+
+  .dark {
+    /* Kasona Dark Mode - Cosmic Premium */
+    --background: 264 20% 2%; /* #050507 - Kosmisch dunkel */
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 100% / 3%; /* Glassmorphism */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 264 20% 6%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 33 100% 58%; /* #ff9627 - Orange */
+    --primary-foreground: 264 20% 2%;
+
+    --secondary: 195 91% 78%; /* #95ddfa - Cyan Blue */
+    --secondary-foreground: 264 20% 2%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 195 91% 78%; /* Cyan Blue */
+    --accent-foreground: 264 20% 2%;
+
+    --destructive: 342 90% 67%; /* Pink */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 100% / 5%;
+    --input: 0 0% 100% / 5%;
+    --ring: 33 100% 58%;
+
+    --sidebar-background: 264 20% 4%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 33 100% 58%;
+    --sidebar-primary-foreground: 264 20% 2%;
+    --sidebar-accent: 0 0% 100% / 5%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 100% / 5%;
+    --sidebar-ring: 33 100% 58%;
+
+    /* Chart colors */
+    --chart-1: 33 100% 58%;
+    --chart-2: 195 91% 78%;
+    --chart-3: 48 100% 67%;
+    --chart-4: 342 90% 67%;
+    --chart-5: 0 0% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  /* Glass Panel */
+  .glass-panel {
+    @apply bg-card backdrop-blur-xl border border-border rounded-xl;
+    box-shadow: 0 4px 30px hsl(0 0% 0% / 0.2);
+  }
+
+  .glass-panel-hover {
+    @apply glass-panel transition-all duration-300;
+  }
+
+  .glass-panel-hover:hover {
+    background: hsl(0 0% 100% / 6%);
+    border-color: hsl(33 100% 58% / 0.4);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 40px hsl(33 100% 58% / 0.1);
+  }
+
+  /* Glow Effects */
+  .glow-orange {
+    box-shadow: 0 0 40px hsl(33 100% 58% / 0.3);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 40px hsl(195 91% 78% / 0.2);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 20px hsl(33 100% 58% / 0.4);
+  }
+
+  .shadow-glow-lg {
+    box-shadow: 0 0 40px hsl(33 100% 58% / 0.5);
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent;
+  }
+
+  .gradient-text-hero {
+    background: linear-gradient(135deg, hsl(33 100% 58%), hsl(342 90% 67%), hsl(195 91% 78%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Label Style */
+  .label-mono {
+    @apply font-mono text-xs tracking-wider text-muted-foreground uppercase;
+  }
+
+  /* Headline Styles */
+  .headline-serif {
+    @apply font-serif italic;
+  }
+
+  /* Data Display */
+  .data-value {
+    @apply font-mono text-lg font-semibold text-foreground;
+  }
+
+  .data-label {
+    @apply font-sans text-sm text-muted-foreground;
+  }
+
+  .data-delta-positive {
+    @apply font-mono text-sm text-green-500;
+  }
+
+  .data-delta-negative {
+    @apply font-mono text-sm text-destructive;
+  }
+}
+
+@layer utilities {
+  /* 3D Perspective for Dashboard Mockup */
+  .perspective-1200 {
+    perspective: 1200px;
+  }
+
+  .transform-3d-tilt {
+    transform: rotateX(8deg) rotateY(-5deg);
+    transform-style: preserve-3d;
+  }
+
+  .transform-3d-flat {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+
+  /* Animations */
+  @keyframes fade-in {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 20px hsl(33 100% 58% / 0.3); }
+    50% { box-shadow: 0 0 40px hsl(33 100% 58% / 0.6); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 30s linear infinite;
+  }
+
+  /* Range Slider */
+  .range-slider::-webkit-slider-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: hsl(33 100% 58%);
+    box-shadow: 0 0 10px hsl(33 100% 58% / 0.5);
+    cursor: pointer;
+  }
+
+  .range-slider::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: hsl(33 100% 58%);
+    box-shadow: 0 0 10px hsl(33 100% 58% / 0.5);
+    cursor: pointer;
+  }
+}
+
+/* Responsive 3D transforms */
+@media (max-width: 768px) {
+  .transform-3d-tilt {
+    transform: rotateX(4deg) rotateY(-2deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .transform-3d-tilt {
+    transform: none;
+  }
+}
+
+/* Print Styles for PDF Export */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body, .min-h-screen {
+    background: white !important;
+    color: #1a1a1a !important;
+  }
+  
+  .dark body, .dark .min-h-screen, .dark {
+    background: white !important;
+    color: #1a1a1a !important;
+  }
+  
+  .glass-panel, [class*="glass-panel"], .card, [class*="Card"],
+  [class*="CardContent"], [class*="CardHeader"], [class*="AccordionItem"] {
+    background: #f8f9fa !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: #1a1a1a !important;
+  }
+  
+  nav, footer, .no-print, [class*="Navigation"], [class*="Footer"] {
+    display: none !important;
+  }
+  
+  .headline-serif, h1, h2, h3, h4 {
+    color: #1a1a1a !important;
+  }
+  
+  .text-muted-foreground, .label-mono {
+    color: #6b7280 !important;
+  }
+  
+  .text-primary, .gradient-text-hero {
+    color: #ff9627 !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: #ff9627 !important;
+  }
+  
+  /* Force charts to render in light colors */
+  .recharts-cartesian-grid line {
+    stroke: #e5e7eb !important;
+  }
+  
+  .recharts-text {
+    fill: #374151 !important;
+  }
+  
+  .recharts-layer path {
+    stroke: #ff9627 !important;
+  }
+  
+  /* Accordion styling */
+  [data-state="open"], [data-state="closed"] {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+  }
+  
+  /* Input/Textarea styling */
+  input, textarea {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    color: #1a1a1a !important;
+  }
+  
+  /* Labels */
+  label {
+    color: #374151 !important;
+  }
+  
+  /* FocusGoal */
+  .focus-goal-container {
+    background: #fff7ed !important;
+    border: 1px solid #fed7aa !important;
+  }
+  
+  /* Ensure all text is dark in print - fixes white-on-white issue */
+  .font-serif, p, span, div {
+    color: #1a1a1a !important;
+  }
+  
+  /* Data values */
+  .data-value {
+    color: #1a1a1a !important;
+  }
+  
+  /* Hide kasona branding in print */
+  img[src*="kasona"], .kasona-logo {
+    display: none !important;
+  }
+  
+  /* Hide Lovable preview elements in print */
+  [data-lovable-watermark], 
+  iframe[src*="lovable"],
+  .lovable-watermark,
+  [id*="lovable"] {
+    display: none !important;
+  }
+  
+  /* Hide buttons except specific ones */
+  button:not(.print-show) {
+    display: none !important;
+  }
+  
+  /* Remove white space issues */
+  main, .container, .max-w-4xl {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  
+  /* Print data table for charts */
+  .print-data-table {
+    display: block !important;
+    margin-top: 8px;
+  }
+  
+  .print-data-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+  }
+  
+  .print-data-table th,
+  .print-data-table td {
+    border: 1px solid #d1d5db;
+    padding: 4px 6px;
+    text-align: center;
+  }
+  
+  .print-data-table th {
+    background: #f3f4f6 !important;
+    font-weight: 600;
+  }
+}

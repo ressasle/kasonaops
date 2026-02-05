@@ -1,0 +1,7 @@
+project_id = "pqrbujtrxkqmpunmxhvg"
+
+[functions.fetch-market-data]
+verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
