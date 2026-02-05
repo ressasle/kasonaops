@@ -1,0 +1,32 @@
+[
+  {
+    "task_id": "task-001",
+    "company_id": 261031,
+    "owner_id": "jakob",
+    "title": "Send onboarding pack for 261031",
+    "status": "in_progress",
+    "priority": "high",
+    "due_date": "2026-02-05",
+    "source": "manual"
+  },
+  {
+    "task_id": "task-002",
+    "company_id": 261044,
+    "owner_id": "clara",
+    "title": "Ingest portfolio PDF for 261044",
+    "status": "todo",
+    "priority": "medium",
+    "due_date": "2026-02-06",
+    "source": "manual"
+  },
+  {
+    "task_id": "task-003",
+    "company_id": null,
+    "owner_id": "jakob",
+    "title": "Record handover voice note",
+    "status": "todo",
+    "priority": "low",
+    "due_date": "2026-02-07",
+    "source": "manual"
+  }
+]
