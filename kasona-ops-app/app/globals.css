@@ -1,0 +1,90 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@1,500;1,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 264 20% 2%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 100% / 3%;
+    --card-foreground: 0 0% 100%;
+    --popover: 264 20% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 33 100% 58%;
+    --primary-foreground: 264 20% 2%;
+    --secondary: 0 0% 100% / 5%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 100% / 10%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 195 91% 78%;
+    --accent-foreground: 264 20% 2%;
+    --destructive: 342 90% 67%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 5%;
+    --input: 0 0% 100% / 10%;
+    --ring: 33 100% 58%;
+    --radius: 0.75rem;
+    --sidebar-background: 264 20% 3%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 100% / 5%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 5%;
+    --sidebar-ring: 33 100% 58%;
+    --font-sans: "Montserrat";
+    --font-serif: "Playfair Display";
+    --font-mono: "Space Mono";
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-card backdrop-blur-xl border border-border shadow-xl;
+  }
+
+  .glass-panel-hover {
+    @apply transition-all duration-500;
+  }
+
+  .glass-panel-hover:hover {
+    border-color: hsl(var(--primary) / 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 40px hsl(33 100% 58% / 0.1);
+  }
+
+  .headline-serif {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  .label-mono {
+    font-family: var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .slider-thumb {
+    accent-color: hsl(var(--primary));
+  }
+
+  .slider-thumb::-webkit-slider-thumb:active {
+    box-shadow: 0 0 20px hsl(33 100% 58% / 0.4);
+  }
+
+  .slider-thumb::-moz-range-thumb:active {
+    box-shadow: 0 0 20px hsl(33 100% 58% / 0.4);
+  }
+}
