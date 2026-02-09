@@ -2,15 +2,24 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { KanbanBoard } from "@/components/admin/sales/kanban-board";
+import { SalesFilters } from "@/components/admin/sales/sales-filters";
+import { SalesLeadsTable } from "@/components/admin/sales/sales-leads-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSalesLeads, LOST_STATUSES, PIPELINE_STAGES } from "@/lib/data/sales";
+import { getTasksByCategories } from "@/lib/data/tasks";
+import { CategoryTasksCard } from "@/components/admin/tasks/category-tasks-card";
+import { getActiveTeamOptions } from "@/lib/data/team-options";
 
 type SalesPageProps = {
   searchParams?: Promise<{
     view?: string;
+    product?: string;
+    status?: string;
+    type?: string;
+    owner_id?: string;
+    search?: string;
   }>;
 };
 
@@ -26,7 +35,27 @@ const formatValue = (value: number | null) => {
 export default async function SalesPage({ searchParams }: SalesPageProps) {
   const resolvedSearchParams = await searchParams;
   const activeView = resolvedSearchParams?.view ?? "overview";
-  const leads = await getSalesLeads();
+  const selectedProduct = resolvedSearchParams?.product ?? "";
+  const selectedStatus = resolvedSearchParams?.status ?? "";
+  const selectedType = resolvedSearchParams?.type ?? "";
+  const selectedOwner = resolvedSearchParams?.owner_id ?? "";
+  const selectedSearch = resolvedSearchParams?.search ?? "";
+
+  const [leads, salesTasks, ownerOptions] = await Promise.all([
+    getSalesLeads(200, {
+      product: selectedProduct || undefined,
+      status: selectedStatus || undefined,
+      type: selectedType || undefined,
+      ownerId: selectedOwner || undefined,
+      search: selectedSearch || undefined,
+    }),
+    getTasksByCategories(["sales"]),
+    getActiveTeamOptions(),
+  ]);
+
+  const productOptions = [...new Set(leads.map((lead) => lead.product_type).filter((value): value is string => Boolean(value)))].map((value) => ({ value, label: value }));
+  const typeOptions = [...new Set(leads.map((lead) => lead.type).filter((value): value is string => Boolean(value)))].map((value) => ({ value, label: value }));
+  const statusOptions = [...new Set([...PIPELINE_STAGES.flatMap((stage) => stage.statuses), ...LOST_STATUSES])];
 
   const stageSummaries = PIPELINE_STAGES.map((stage) => {
     const stageLeads = leads.filter((lead) => stage.statuses.includes(lead.status ?? ""));
@@ -79,6 +108,19 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </Button>
       </div>
 
+      <SalesFilters
+        view={activeView}
+        search={selectedSearch}
+        product={selectedProduct}
+        status={selectedStatus}
+        type={selectedType}
+        ownerId={selectedOwner}
+        productOptions={productOptions}
+        statusOptions={statusOptions.map((value) => ({ value, label: value }))}
+        typeOptions={typeOptions}
+        ownerOptions={ownerOptions}
+      />
+
       {activeView === "kanban" ? (
         <KanbanBoard leads={leads} />
       ) : activeView === "list" ? (
@@ -88,35 +130,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
             <Button variant="outline">Export</Button>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Probability</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leads.map((lead) => (
-                  <TableRow key={lead.company_id}>
-                    <TableCell>
-                      <Link href={`/customers/${lead.company_id}`} className="text-sm font-semibold hover:underline">
-                        {lead.company_name}
-                      </Link>
-                      <div className="text-xs text-muted-foreground">
-                        {lead.contact_person_name || lead.email || "No contact"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{lead.status ?? "-"}</TableCell>
-                    <TableCell>{lead.action_status ?? "-"}</TableCell>
-                    <TableCell>{formatValue(lead.expected_deal_value ?? lead.contract_size)}</TableCell>
-                    <TableCell>{lead.probability ? `${lead.probability}%` : "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SalesLeadsTable leads={leads} salesTasks={salesTasks} statusOptions={statusOptions} />
           </CardContent>
         </Card>
       ) : (
@@ -171,6 +185,8 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 ))}
               </CardContent>
             </Card>
+
+            <CategoryTasksCard title="Sales Tasks" tasks={salesTasks} />
           </section>
         </>
       )}

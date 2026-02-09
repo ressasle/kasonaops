@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Save, SkipForward, Layout, FileOutput, Radio, Activity } from "lucide-react";
+import { Loader2, Save, SkipForward, Layout, FileOutput, Radio, Activity, Target, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,12 @@ const PERSONA_TEMPLATES = [
         decision_logic: 5,
         risk_appetite: 4,
         output_format: "Newsletter",
-        output_frequency: "daily"
+        output_frequency: "daily",
+        investment_philosophy: "Quantitative Momentum & Factor Investing",
+        buy_box_trigger_1: "Earnings surprise >10% vs consensus",
+        buy_box_trigger_2: "RSI crossover below 30 (oversold reversal)",
+        buy_box_trigger_3: "Insider buying >$500K in 30 days",
+        noise_filter: "Penny stocks, SPACs, meme stocks",
     },
     {
         name: "Wealthy Part-Time (Weekly)",
@@ -26,7 +31,12 @@ const PERSONA_TEMPLATES = [
         decision_logic: 3,
         risk_appetite: 3,
         output_format: "Podcast",
-        output_frequency: "weekly"
+        output_frequency: "weekly",
+        investment_philosophy: "Quality Growth at a Reasonable Price",
+        buy_box_trigger_1: "Dividend increase announcement",
+        buy_box_trigger_2: "P/E drops below 5-year average",
+        buy_box_trigger_3: "Analyst upgrade to Buy/Strong Buy",
+        noise_filter: "Micro-caps, crypto hype, day-trading signals",
     },
     {
         name: "Passive Investor (Monthly)",
@@ -35,7 +45,12 @@ const PERSONA_TEMPLATES = [
         decision_logic: 2,
         risk_appetite: 2,
         output_format: "Newsletter",
-        output_frequency: "monthly"
+        output_frequency: "monthly",
+        investment_philosophy: "Long-Term Buy & Hold, Index-Core",
+        buy_box_trigger_1: "Major index rebalancing event",
+        buy_box_trigger_2: "Expense ratio reduction on held ETFs",
+        buy_box_trigger_3: "Portfolio drift >5% from target allocation",
+        noise_filter: "Individual stock picks, short-term technicals",
     }
 ];
 
@@ -50,7 +65,10 @@ type InvestorProfileFormData = {
     decision_logic: number;
     risk_appetite: number;
     investment_philosophy: string;
-    notes: string;
+    buy_box_trigger_1: string;
+    buy_box_trigger_2: string;
+    buy_box_trigger_3: string;
+    noise_filter: string;
 };
 
 type DnaKey = "data_granularity" | "action_frequency" | "decision_logic" | "risk_appetite";
@@ -77,7 +95,10 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
         decision_logic: 3,
         risk_appetite: 3,
         investment_philosophy: "",
-        notes: "",
+        buy_box_trigger_1: "",
+        buy_box_trigger_2: "",
+        buy_box_trigger_3: "",
+        noise_filter: "",
     });
 
     const handleChange = (field: string, value: any) => {
@@ -101,8 +122,11 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                 action_frequency: formData.action_frequency,
                 decision_logic: formData.decision_logic,
                 risk_appetite: formData.risk_appetite,
-                investment_philosophy: formData.investment_philosophy,
-                notes: formData.notes,
+                investment_philosophy: formData.investment_philosophy || null,
+                buy_box_trigger_1: formData.buy_box_trigger_1 || null,
+                buy_box_trigger_2: formData.buy_box_trigger_2 || null,
+                buy_box_trigger_3: formData.buy_box_trigger_3 || null,
+                noise_filter: formData.noise_filter || null,
             };
 
             const response = await fetch("/api/investor-profiles", {
@@ -182,7 +206,12 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                                         decision_logic: template.decision_logic,
                                         risk_appetite: template.risk_appetite,
                                         output_format: template.output_format as InvestorProfileFormData["output_format"],
-                                        output_frequency: template.output_frequency as InvestorProfileFormData["output_frequency"]
+                                        output_frequency: template.output_frequency as InvestorProfileFormData["output_frequency"],
+                                        investment_philosophy: template.investment_philosophy,
+                                        buy_box_trigger_1: template.buy_box_trigger_1,
+                                        buy_box_trigger_2: template.buy_box_trigger_2,
+                                        buy_box_trigger_3: template.buy_box_trigger_3,
+                                        noise_filter: template.noise_filter,
                                     }));
                                 }
                             }}
@@ -290,7 +319,7 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Investment Philosophy</Label>
+                        <Label>Investment Philosophy <span className="text-xs text-muted-foreground">(optional)</span></Label>
                         <Input
                             placeholder="e.g. Dividend Growth, Value Investing..."
                             value={formData.investment_philosophy}
@@ -298,13 +327,50 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                         />
                     </div>
 
+                    <div className="space-y-4 rounded-xl border border-border/50 bg-black/20 p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Target className="h-4 w-4 text-primary" />
+                            <Label className="text-base">Buy Box Triggers <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground -mt-2">Define up to 3 signals that should trigger a buy/sell alert for this portfolio.</p>
+                        <div className="grid gap-3">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Trigger 1</Label>
+                                <Input
+                                    placeholder="e.g. Earnings surprise >10% vs consensus"
+                                    value={formData.buy_box_trigger_1}
+                                    onChange={(e) => handleChange("buy_box_trigger_1", e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Trigger 2</Label>
+                                <Input
+                                    placeholder="e.g. RSI crossover below 30 (oversold reversal)"
+                                    value={formData.buy_box_trigger_2}
+                                    onChange={(e) => handleChange("buy_box_trigger_2", e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Trigger 3</Label>
+                                <Input
+                                    placeholder="e.g. Insider buying >$500K in 30 days"
+                                    value={formData.buy_box_trigger_3}
+                                    onChange={(e) => handleChange("buy_box_trigger_3", e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
-                        <Label>Mandate Notes</Label>
+                        <Label className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            Noise Filter <span className="text-xs text-muted-foreground">(optional)</span>
+                        </Label>
                         <Textarea
-                            placeholder="Specific constraints, benchmarks, or goals..."
-                            value={formData.notes}
-                            onChange={(e) => handleChange("notes", e.target.value)}
-                            rows={3}
+                            placeholder="Topics or signals to exclude, e.g. penny stocks, meme stocks, crypto hype..."
+                            value={formData.noise_filter}
+                            onChange={(e) => handleChange("noise_filter", e.target.value)}
+                            rows={2}
                         />
                     </div>
 

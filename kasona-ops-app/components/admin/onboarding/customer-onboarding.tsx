@@ -12,19 +12,41 @@ import { PortfolioUpload } from "@/components/admin/crm/portfolio-upload";
 import { cn } from "@/lib/utils";
 import type { Customer } from "@/lib/data/customers";
 
-type Step = "company" | "investor" | "portfolio";
+type Step = "select" | "company" | "investor" | "portfolio";
 
 type CustomerOnboardingProps = {
   customers: Customer[];
   supabaseReady: boolean;
+  initialCompanyId?: number;
+  initialCompanyName?: string;
 };
 
-export function CustomerOnboarding({ customers, supabaseReady }: CustomerOnboardingProps) {
+export function CustomerOnboarding({ customers, supabaseReady, initialCompanyId, initialCompanyName }: CustomerOnboardingProps) {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<Step>("company");
-  const [companyId, setCompanyId] = useState<number | null>(null);
-  const [companyName, setCompanyName] = useState<string>("");
+  const hasInitialCompany = !!(initialCompanyId && initialCompanyName);
+  const [currentStep, setCurrentStep] = useState<Step>(hasInitialCompany ? "investor" : "select");
+  const [companyId, setCompanyId] = useState<number | null>(initialCompanyId ?? null);
+  const [companyName, setCompanyName] = useState<string>(initialCompanyName ?? "");
   const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const [searchCustomers, setSearchCustomers] = useState<string>("");
+
+  const filteredCustomers = useMemo(() => {
+    if (!searchCustomers) {
+      return customers.slice(0, 10);
+    }
+
+    return customers.filter((customer) => {
+      const companyName = customer.company_name?.toLowerCase() ?? "";
+      const email = customer.email?.toLowerCase() ?? "";
+      const contactPerson = customer.contact_person_name?.toLowerCase() ?? "";
+
+      return (
+        companyName.includes(searchCustomers) ||
+        email.includes(searchCustomers) ||
+        contactPerson.includes(searchCustomers)
+      );
+    });
+  }, [customers, searchCustomers]);
 
   const steps = [
     {
@@ -112,6 +134,55 @@ export function CustomerOnboarding({ customers, supabaseReady }: CustomerOnboard
 
       {/* Step Content */}
       <div className="mx-auto max-w-4xl">
+        {currentStep === "select" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-6 text-center">
+              <h2 className="headline-serif text-2xl">Select Customer</h2>
+              <p className="text-muted-foreground">
+                Choose the customer to onboard, or create a new one.
+              </p>
+            </div>
+            <Card className="mx-auto max-w-xl p-6">
+              <CardContent className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Search by company, contact person, or email..."
+                  className="h-10 w-full rounded-full border border-input bg-transparent px-4 text-sm"
+                  onChange={(e) => {
+                    const term = e.target.value.toLowerCase();
+                    setSearchCustomers(term);
+                  }}
+                />
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {filteredCustomers.map((c) => (
+                    <button
+                      key={c.company_id}
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                      onClick={() => {
+                        setCompanyId(c.company_id);
+                        setCompanyName(c.company_name);
+                        setCurrentStep("investor");
+                      }}
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{c.company_name}</div>
+                        <div className="text-xs text-muted-foreground">{c.email ?? "No email"}</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 border-t border-border/60 pt-4 text-center">
+                  <Button variant="outline" onClick={() => setCurrentStep("company")}>
+                    Create New Customer
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {currentStep === "company" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="mb-6 text-center">

@@ -4,9 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCustomers } from "@/lib/data/customers";
+import { getTasksByCategories } from "@/lib/data/tasks";
+import { CategoryTasksCard } from "@/components/admin/tasks/category-tasks-card";
 
 export default async function FinancePage() {
-  const customers = await getCustomers();
+  const [customers, financeTasks] = await Promise.all([
+    getCustomers(),
+    getTasksByCategories(["finance"]),
+  ]);
 
   return (
     <div className="space-y-10">
@@ -80,6 +85,8 @@ export default async function FinancePage() {
             </div>
           </CardContent>
         </Card>
+
+        <CategoryTasksCard title="Finance Tasks" tasks={financeTasks} />
       </section>
     </div>
   );

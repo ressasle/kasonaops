@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Filter,
+  Search,
+  Trash2,
+  RefreshCw
+} from "lucide-react";
 
 import type { PortfolioAsset } from "@/lib/data/types";
 import { Badge } from "@/components/ui/badge";
@@ -12,146 +21,32 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EnrichmentResultsModal, type EnrichmentResult } from "./enrichment-results-modal";
+import { PortfolioImportDialog } from "./portfolio-import-dialog";
 
 type PortfolioAssetsManagerProps = {
   assets: PortfolioAsset[];
   supabaseReady: boolean;
+  portfolioId?: string;
+  companyId?: number;
 };
 
-type ParsedAsset = {
-  portfolio_id: string;
-  company_id: number | null;
-  ticker: string | null;
-  stock_name: string | null;
-  bourse: string | null;
-  country: string | null;
-  category: string | null;
-  sector: string | null;
-  owner_comment: string | null;
-  currency: string | null;
-  ticker_finnhub: string | null;
-  ticker_eod: string | null;
-  isin: string | null;
-  asset_class: "Crypto" | "Stocks" | "ETF" | "Other" | null;
-  watchtower: boolean | null;
-};
-
-const normalizeHeader = (value: string) => value.trim().toLowerCase();
-
-const headerAliases: Record<keyof ParsedAsset, string[]> = {
-  portfolio_id: ["portfolio_id", "portfolio id", "portfolio"],
-  company_id: ["company_id", "company id", "company"],
-  ticker: ["ticker", "symbol"],
-  stock_name: ["stock_name", "stock name", "name"],
-  bourse: ["bourse", "exchange"],
-  country: ["country"],
-  category: ["category"],
-  sector: ["sector"],
-  owner_comment: ["owner_comment", "owner comment", "comment"],
-  currency: ["currency"],
-  ticker_finnhub: ["ticker_finnhub", "ticker finnhub", "finnhub"],
-  ticker_eod: ["ticker_eod", "ticker eod", "eod"],
-  isin: ["isin"],
-  asset_class: ["asset_class", "asset class", "class"],
-  watchtower: ["watchtower", "watch tower", "watchlist", "watch"]
-};
-
-const normalizeAssetClass = (value: string) => {
-  const cleaned = value.trim().toLowerCase();
-  if (!cleaned) return null;
-  if (cleaned === "crypto") return "Crypto";
-  if (cleaned === "stocks" || cleaned === "stock" || cleaned === "equity") return "Stocks";
-  if (cleaned === "etf" || cleaned === "etfs") return "ETF";
-  return "Other";
-};
-
-const parseBoolean = (value: string) => {
-  const cleaned = value.trim().toLowerCase();
-  if (!cleaned) return null;
-  if (["true", "yes", "y", "1"].includes(cleaned)) return true;
-  if (["false", "no", "n", "0"].includes(cleaned)) return false;
-  return null;
-};
-
-const parseCsv = (text: string) => {
-  const rows: string[][] = [];
-  let current = "";
-  let row: string[] = [];
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (!inQuotes && (char === "," || char === "\n")) {
-      row.push(current);
-      current = "";
-      if (char === "\n") {
-        rows.push(row);
-        row = [];
-      }
-      continue;
-    }
-
-    if (!inQuotes && char === "\r") {
-      continue;
-    }
-
-    current += char;
-  }
-
-  if (current.length > 0 || row.length > 0) {
-    row.push(current);
-    rows.push(row);
-  }
-
-  return rows.filter((rowItem) => rowItem.some((cell) => cell.trim().length > 0));
-};
-
-export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAssetsManagerProps) {
+export function PortfolioAssetsManager({ assets, supabaseReady, portfolioId = "", companyId = 0 }: PortfolioAssetsManagerProps) {
   const router = useRouter();
-  const [parsedAssets, setParsedAssets] = useState<ParsedAsset[]>([]);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
-  const [uploadMode, setUploadMode] = useState<"csv" | "manual" | "enrich">("csv");
-  const [manualAsset, setManualAsset] = useState<ParsedAsset>({
-    portfolio_id: "",
-    company_id: null,
-    ticker: "",
-    stock_name: "",
-    bourse: null,
-    country: null,
-    category: null,
-    sector: null,
-    owner_comment: null,
-    currency: null,
-    ticker_finnhub: null,
-    ticker_eod: null,
-    isin: "",
-    asset_class: "Stocks",
-    watchtower: null
-  });
+
+  // Filter State
+  const [showNeedsReview, setShowNeedsReview] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Enrichment State
   const [enrichAsset, setEnrichAsset] = useState({
-    portfolio_id: "",
-    company_id: null as number | null,
     stock_name: "",
     exchange: ""
   });
   const [batchEnrich, setBatchEnrich] = useState({
-    portfolio_id: "",
-    company_id: "",
+    portfolio_id: portfolioId, // Default to current
+    company_id: companyId.toString(),
     customer_id: ""
   });
   const [skipEnriched, setSkipEnriched] = useState(true);
@@ -160,166 +55,56 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
   const [enrichmentSummary, setEnrichmentSummary] = useState({ total: 0, enriched: 0, skipped: 0, errors: 0 });
   const [showResultsModal, setShowResultsModal] = useState(false);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Filter Logic
+  const filteredAssets = useMemo(() => {
+    return assets.filter(asset => {
+      // 1. Text Search
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        asset.stock_name?.toLowerCase().includes(searchLower) ||
+        asset.ticker?.toLowerCase().includes(searchLower) ||
+        asset.isin?.toLowerCase().includes(searchLower);
 
-    const text = await file.text();
-    const rows = parseCsv(text);
+      if (!matchesSearch) return false;
 
-    if (rows.length < 2) {
-      setError("CSV must include a header and at least one row.");
-      setParsedAssets([]);
-      return;
-    }
-
-    const headers = rows[0].map(normalizeHeader);
-    const headerIndex = new Map<string, number>();
-    headers.forEach((header, index) => headerIndex.set(header, index));
-
-    const getIndex = (aliases: string[]) => {
-      for (const alias of aliases) {
-        const key = normalizeHeader(alias);
-        if (headerIndex.has(key)) return headerIndex.get(key) as number;
+      // 2. Needs Review Filter
+      // Condition: Missing essential data OR flagged as error
+      if (showNeedsReview) {
+        const isMissingTicker = !asset.ticker_eod && !asset.ticker;
+        const isErrorStatus = asset.owner_comment?.includes("error") || false;
+        return isMissingTicker || isErrorStatus;
       }
-      return -1;
-    };
 
-    const indices = Object.fromEntries(
-      Object.entries(headerAliases).map(([key, aliases]) => [key, getIndex(aliases)])
-    ) as Record<keyof ParsedAsset, number>;
-
-    const newAssets: ParsedAsset[] = [];
-
-    rows.slice(1).forEach((row) => {
-      const portfolioId = indices.portfolio_id >= 0 ? row[indices.portfolio_id]?.trim() : "";
-      if (!portfolioId) return;
-
-      const companyIdValue = indices.company_id >= 0 ? row[indices.company_id]?.trim() : "";
-      const companyId = companyIdValue ? Number(companyIdValue) : null;
-
-      const assetClassValue = indices.asset_class >= 0 ? row[indices.asset_class]?.trim() : "";
-      const assetClass = assetClassValue ? normalizeAssetClass(assetClassValue) : null;
-      const watchtowerValue = indices.watchtower >= 0 ? row[indices.watchtower]?.trim() : "";
-      const watchtower = watchtowerValue ? parseBoolean(watchtowerValue) : null;
-
-      newAssets.push({
-        portfolio_id: portfolioId,
-        company_id: Number.isFinite(companyId) ? companyId : null,
-        ticker: indices.ticker >= 0 ? row[indices.ticker]?.trim() || null : null,
-        stock_name: indices.stock_name >= 0 ? row[indices.stock_name]?.trim() || null : null,
-        bourse: indices.bourse >= 0 ? row[indices.bourse]?.trim() || null : null,
-        country: indices.country >= 0 ? row[indices.country]?.trim() || null : null,
-        category: indices.category >= 0 ? row[indices.category]?.trim() || null : null,
-        sector: indices.sector >= 0 ? row[indices.sector]?.trim() || null : null,
-        owner_comment: indices.owner_comment >= 0 ? row[indices.owner_comment]?.trim() || null : null,
-        currency: indices.currency >= 0 ? row[indices.currency]?.trim() || null : null,
-        ticker_finnhub: indices.ticker_finnhub >= 0 ? row[indices.ticker_finnhub]?.trim() || null : null,
-        ticker_eod: indices.ticker_eod >= 0 ? row[indices.ticker_eod]?.trim() || null : null,
-        isin: indices.isin >= 0 ? row[indices.isin]?.trim() || null : null,
-        asset_class: assetClass,
-        watchtower
-      });
+      return true;
     });
-
-    if (newAssets.length === 0) {
-      setError("No valid assets found. Ensure portfolio_id is present.");
-      setParsedAssets([]);
-      return;
-    }
-
-    setFileName(file.name);
-    setParsedAssets(newAssets);
-    setError(null);
-  };
-
-  const handleManualChange =
-    (field: keyof ParsedAsset) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const value = event.target.value;
-      setManualAsset((prev) => ({
-        ...prev,
-        [field]:
-          field === "company_id"
-            ? value
-              ? Number(value)
-              : null
-            : field === "watchtower"
-              ? value
-                ? value === "true"
-                : null
-              : value
-      }));
-    };
-
-  const addManualAsset = () => {
-    if (!manualAsset.portfolio_id.trim()) {
-      setError("portfolio_id is required.");
-      return;
-    }
-
-    setParsedAssets((prev) => [
-      ...prev,
-      {
-        ...manualAsset,
-        portfolio_id: manualAsset.portfolio_id.trim(),
-        ticker: manualAsset.ticker?.trim() || null,
-        stock_name: manualAsset.stock_name?.trim() || null,
-        isin: manualAsset.isin?.trim() || null
-      }
-    ]);
-
-    setManualAsset({
-      portfolio_id: "",
-      company_id: null,
-      ticker: "",
-      stock_name: "",
-      bourse: null,
-      country: null,
-      category: null,
-      sector: null,
-      owner_comment: null,
-      currency: null,
-      ticker_finnhub: null,
-      ticker_eod: null,
-      isin: "",
-      asset_class: "Stocks",
-      watchtower: null
-    });
-    setError(null);
-  };
+  }, [assets, searchQuery, showNeedsReview]);
 
   const handleEnrichChange =
     (field: keyof typeof enrichAsset) =>
       (event: React.ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
         setEnrichAsset((prev) => ({
           ...prev,
-          [field]: field === "company_id" ? (value ? Number(value) : null) : value
+          [field]: event.target.value
         }));
       };
 
   const handleBatchChange =
     (field: keyof typeof batchEnrich) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
       setBatchEnrich((prev) => ({
         ...prev,
-        [field]: value
+        [field]: event.target.value
       }));
     };
 
   const handleEnrich = async () => {
     if (!supabaseReady) {
-      setError("Supabase is not configured. Add environment variables first.");
-      return;
-    }
-
-    if (!enrichAsset.portfolio_id.trim()) {
-      setError("portfolio_id is required.");
+      toast.error("Supabase is not configured");
       return;
     }
 
     if (!enrichAsset.stock_name.trim()) {
-      setError("stock name is required.");
+      toast.error("Stock name is required");
       return;
     }
 
@@ -332,8 +117,8 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "single",
-          portfolio_id: enrichAsset.portfolio_id.trim(),
-          company_id: enrichAsset.company_id,
+          portfolio_id: portfolioId,
+          company_id: companyId,
           stock_name: enrichAsset.stock_name.trim(),
           exchange: enrichAsset.exchange.trim() || undefined
         })
@@ -344,15 +129,13 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
         throw new Error(data.error ?? "Enrichment failed");
       }
 
-      setEnrichAsset({
-        portfolio_id: "",
-        company_id: null,
-        stock_name: "",
-        exchange: ""
-      });
+      setEnrichAsset(prev => ({ ...prev, stock_name: "", exchange: "" }));
+      toast.success("Asset enriched successfully");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enrichment failed");
+      const msg = err instanceof Error ? err.message : "Enrichment failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsEnriching(false);
     }
@@ -360,37 +143,13 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
 
   const handleBatchEnrich = async (mode: "portfolio" | "company" | "customer") => {
     if (!supabaseReady) {
-      setError("Supabase is not configured. Add environment variables first.");
+      toast.error("Supabase is not configured");
       return;
     }
 
+    // Validation
     if (mode === "portfolio" && !batchEnrich.portfolio_id.trim()) {
-      setError("portfolio_id is required for batch enrichment.");
-      return;
-    }
-
-    if (mode === "company" && !batchEnrich.company_id.trim()) {
-      setError("company_id is required for batch enrichment.");
-      return;
-    }
-
-    if (mode === "customer" && !batchEnrich.customer_id.trim()) {
-      setError("customer_id is required for batch enrichment.");
-      return;
-    }
-
-    const companyIdValue = batchEnrich.company_id.trim();
-    const customerIdValue = batchEnrich.customer_id.trim();
-    const parsedCompanyId = companyIdValue ? Number(companyIdValue) : undefined;
-    const parsedCustomerId = customerIdValue ? Number(customerIdValue) : undefined;
-
-    if (mode === "company" && (parsedCompanyId == null || !Number.isFinite(parsedCompanyId))) {
-      setError("company_id must be a number.");
-      return;
-    }
-
-    if (mode === "customer" && (parsedCustomerId == null || !Number.isFinite(parsedCustomerId))) {
-      setError("customer_id must be a number.");
+      toast.error("Portfolio ID is required");
       return;
     }
 
@@ -399,29 +158,29 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
     setError(null);
 
     try {
+      const payload = {
+        mode,
+        portfolio_id: batchEnrich.portfolio_id.trim() || undefined,
+        company_id: Number(batchEnrich.company_id) || undefined,
+        customer_id: Number(batchEnrich.customer_id) || undefined,
+        skipEnriched
+      };
+
       const response = await fetch("/api/portfolio-assets/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode,
-          portfolio_id: batchEnrich.portfolio_id.trim() || undefined,
-          company_id: parsedCompanyId,
-          customer_id: parsedCustomerId,
-          skipEnriched
-        })
+        body: JSON.stringify(payload)
       });
 
       setEnrichmentProgress(80);
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Batch enrichment failed");
+        throw new Error("Batch enrichment failed");
       }
 
       const data = await response.json();
       setEnrichmentProgress(100);
 
-      // Store results for modal
       setEnrichmentResults(data.results ?? []);
       setEnrichmentSummary({
         total: data.total ?? 0,
@@ -429,26 +188,31 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
         skipped: data.skipped ?? 0,
         errors: data.errors ?? 0
       });
-      setShowResultsModal(true);
 
+      // Notification Logic
+      if ((data.errors ?? 0) > 0) {
+        toast.warning(`Enrichment complete with ${data.errors} errors. Please review.`);
+      } else {
+        toast.success(`Enrichment complete. ${data.enriched} assets enriched.`);
+      }
+
+      setShowResultsModal(true);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Batch enrichment failed");
+      const msg = err instanceof Error ? err.message : "Batch enrichment failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsEnriching(false);
       setEnrichmentProgress(0);
     }
   };
 
-
   const handleRowEnrich = async (assetId: string) => {
-    if (!supabaseReady) {
-      setError("Supabase is not configured. Add environment variables first.");
-      return;
-    }
+    if (!supabaseReady) return;
 
     setIsEnriching(true);
-    setError(null);
+    const toastId = toast.loading("Enriching asset...");
 
     try {
       const response = await fetch("/api/portfolio-assets/enrich", {
@@ -460,391 +224,250 @@ export function PortfolioAssetsManager({ assets, supabaseReady }: PortfolioAsset
         })
       });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Enrichment failed");
-      }
+      if (!response.ok) throw new Error("Failed");
 
+      toast.success("Enriched", { id: toastId });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enrichment failed");
+      toast.error("Failed to enrich", { id: toastId });
     } finally {
       setIsEnriching(false);
     }
   };
 
-  const handleUpload = async () => {
-    if (!supabaseReady) {
-      setError("Supabase is not configured. Add environment variables first.");
-      return;
-    }
+  const handleDelete = async (assetId: string) => {
+    if (!confirm("Delete this asset?")) return;
 
-    if (parsedAssets.length === 0) {
-      setError("No parsed assets to upload.");
-      return;
-    }
-
-    setIsUploading(true);
-    setError(null);
-
+    const toastId = toast.loading("Deleting...");
     try {
-      const response = await fetch("/api/portfolio-assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assets: parsedAssets })
-      });
+      const response = await fetch(`/api/portfolio-assets/${assetId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed");
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Upload failed");
-      }
-
-      setParsedAssets([]);
-      setFileName(null);
+      toast.success("Deleted", { id: toastId });
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setIsUploading(false);
+      toast.error("Delete failed", { id: toastId });
     }
   };
 
-  const handleDelete = async (assetId: string) => {
-    if (!supabaseReady) {
-      setError("Supabase is not configured. Add environment variables first.");
-      return;
-    }
-
-    const confirmed = window.confirm("Delete this asset?");
-    if (!confirmed) return;
-
-    setIsUploading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/portfolio-assets/${assetId}`, { method: "DELETE" });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Unable to delete asset");
-      }
-
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete asset");
-    } finally {
-      setIsUploading(false);
-    }
+  const handleImportSuccess = () => {
+    toast.success("Assets imported successfully");
+    router.refresh();
   };
 
   return (
-    <section className="grid gap-6 lg:grid-cols-2">
-      <Card className="p-6">
-        <CardHeader>
-          <CardTitle>Portfolio Upload</CardTitle>
-          <Badge variant={supabaseReady ? "success" : "warning"}>
-            {supabaseReady ? "Live" : "Offline"}
-          </Badge>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={uploadMode === "csv" ? "default" : "outline"}
-              onClick={() => setUploadMode("csv")}
-            >
-              CSV Upload
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={uploadMode === "manual" ? "default" : "outline"}
-              onClick={() => setUploadMode("manual")}
-            >
-              Manual Entry
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={uploadMode === "enrich" ? "default" : "outline"}
-              onClick={() => setUploadMode("enrich")}
-            >
-              Smart Search
-            </Button>
-          </div>
-          {uploadMode === "csv" && (
-            <div className="space-y-2">
-              <Label>CSV File</Label>
-              <Input type="file" accept=".csv" onChange={handleFileChange} />
-            </div>
-          )}
-          {uploadMode === "manual" && (
-            <div className="space-y-3 rounded-2xl border border-border/60 p-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Portfolio ID</Label>
-                  <Input value={manualAsset.portfolio_id} onChange={handleManualChange("portfolio_id")} />
+    <section className="space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        {/* Left Column: Import & Quick Add */}
+        <div className="w-full lg:w-1/3 space-y-6">
+          <Card className="p-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Input Methods</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 1. Import Dialog */}
+              <div className="rounded-xl border border-border/50 p-4 bg-muted/20">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="font-semibold">Import Assets</Label>
+                  <PortfolioImportDialog
+                    portfolioId={portfolioId}
+                    companyId={companyId}
+                    onSuccess={handleImportSuccess}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label>Company ID</Label>
-                  <Input type="number" value={manualAsset.company_id ?? ""} onChange={handleManualChange("company_id")} />
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Supports CSV, Bank Statements (PDF), and Screenshots.
+                </p>
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Ticker</Label>
-                  <Input value={manualAsset.ticker ?? ""} onChange={handleManualChange("ticker")} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input value={manualAsset.stock_name ?? ""} onChange={handleManualChange("stock_name")} />
-                </div>
-                <div className="space-y-2">
-                  <Label>ISIN</Label>
-                  <Input value={manualAsset.isin ?? ""} onChange={handleManualChange("isin")} />
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Asset Class</Label>
-                  <select
-                    value={manualAsset.asset_class ?? ""}
-                    onChange={handleManualChange("asset_class")}
-                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+
+              {/* 2. Manual Quick Add (Simplified Enrich Form) */}
+              <div className="rounded-xl border border-border/50 p-4">
+                <Label className="font-semibold mb-3 block">Quick Add (Smart Search)</Label>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Stock Name (e.g. Apple)"
+                    value={enrichAsset.stock_name}
+                    onChange={handleEnrichChange("stock_name")}
+                  />
+                  <Input
+                    placeholder="Exchange (e.g. US) - Optional"
+                    value={enrichAsset.exchange}
+                    onChange={handleEnrichChange("exchange")}
+                  />
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    onClick={handleEnrich}
+                    disabled={isEnriching}
                   >
-                    <option value="Stocks">Stocks</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Crypto">Crypto</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Sector</Label>
-                  <Input value={manualAsset.sector ?? ""} onChange={handleManualChange("sector")} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Currency</Label>
-                  <Input value={manualAsset.currency ?? ""} onChange={handleManualChange("currency")} />
+                    {isEnriching && <RefreshCw className="mr-2 h-3 w-3 animate-spin" />}
+                    Add & Enrich
+                  </Button>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Watchtower</Label>
-                  <select
-                    value={manualAsset.watchtower === null ? "" : manualAsset.watchtower ? "true" : "false"}
-                    onChange={handleManualChange("watchtower")}
-                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                  >
-                    <option value="">Not set</option>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
+            </CardContent>
+          </Card>
+
+          {/* Batch Actions */}
+          <Card className="p-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Batch Operations</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Company ID</Label>
+                  <Input
+                    value={batchEnrich.company_id}
+                    onChange={handleBatchChange("company_id")}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Customer ID</Label>
+                  <Input
+                    value={batchEnrich.customer_id}
+                    onChange={handleBatchChange("customer_id")}
+                    className="h-8 text-xs"
+                  />
                 </div>
               </div>
-              <Button type="button" size="sm" onClick={addManualAsset}>
-                Add to batch
-              </Button>
-            </div>
-          )}
-          {uploadMode === "enrich" && (
-            <div className="space-y-4">
-              <div className="space-y-3 rounded-2xl border border-border/60 p-4">
-                <div className="text-sm font-medium">Single Asset Search</div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Portfolio ID</Label>
-                    <Input value={enrichAsset.portfolio_id} onChange={handleEnrichChange("portfolio_id")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Company ID (optional)</Label>
-                    <Input type="number" value={enrichAsset.company_id ?? ""} onChange={handleEnrichChange("company_id")} />
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Stock Name</Label>
-                    <Input value={enrichAsset.stock_name} onChange={handleEnrichChange("stock_name")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Exchange Code (optional)</Label>
-                    <Input value={enrichAsset.exchange} onChange={handleEnrichChange("exchange")} placeholder="US" />
-                  </div>
-                </div>
-                <Button type="button" size="sm" onClick={handleEnrich} disabled={isEnriching}>
-                  Search & Enrich
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBatchEnrich("portfolio")}
+                  disabled={isEnriching}
+                >
+                  Enrich This Portfolio
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBatchEnrich("company")}
+                  disabled={isEnriching}
+                >
+                  Enrich All (Company)
                 </Button>
               </div>
-              <div className="space-y-3 rounded-2xl border border-dashed border-border/60 p-4">
-                <div className="text-sm font-medium">Batch Enrichment</div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Portfolio ID</Label>
-                    <Input value={batchEnrich.portfolio_id} onChange={handleBatchChange("portfolio_id")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Company ID</Label>
-                    <Input value={batchEnrich.company_id} onChange={handleBatchChange("company_id")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Customer ID</Label>
-                    <Input value={batchEnrich.customer_id} onChange={handleBatchChange("customer_id")} />
+
+              {isEnriching && enrichmentProgress > 0 && (
+                <Progress value={enrichmentProgress} className="h-1" />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Asset List */}
+        <div className="w-full lg:w-2/3">
+          <Card className="h-full">
+            <CardHeader className="border-b border-border/50 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Portfolio Assets</CardTitle>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Badge variant="outline">{assets.length} Total</Badge>
+                    <Badge variant={supabaseReady ? "success" : "warning"}>
+                      {supabaseReady ? "DB Connected" : "DB Offline"}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => handleBatchEnrich("portfolio")} disabled={isEnriching}>
-                    Enrich Portfolio
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => handleBatchEnrich("company")} disabled={isEnriching}>
-                    Enrich Company
-                  </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => handleBatchEnrich("customer")} disabled={isEnriching}>
-                    Enrich Customer Portfolios
+
+                {/* Filters */}
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-[150px] pl-9 lg:w-[200px]"
+                    />
+                  </div>
+                  <Button
+                    variant={showNeedsReview ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowNeedsReview(!showNeedsReview)}
+                    className="gap-2"
+                  >
+                    <Filter className="h-3 w-3" />
+                    Review
+                    {showNeedsReview && <span className="ml-1 rounded-full bg-white/20 px-1 text-[10px]">{filteredAssets.length}</span>}
                   </Button>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={skipEnriched}
-                    onChange={(e) => setSkipEnriched(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
-                  />
-                  Skip already enriched assets
-                </label>
-                {isEnriching && enrichmentProgress > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">Enriching assets...</div>
-                    <Progress value={enrichmentProgress} />
-                  </div>
-                )}
               </div>
-            </div>
-          )}
-          {fileName && (
-            <div className="text-xs text-muted-foreground">Loaded: {fileName}</div>
-          )}
-          {parsedAssets.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Preview ({parsedAssets.length} rows)</div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Portfolio</TableHead>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead>ISIN</TableHead>
-                    <TableHead>Class</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parsedAssets.slice(0, 6).map((asset, index) => (
-                    <TableRow key={`${asset.portfolio_id}-${index}`}>
-                      <TableCell className="font-mono text-xs">{asset.portfolio_id}</TableCell>
-                      <TableCell>{asset.ticker ?? "-"}</TableCell>
-                      <TableCell>{asset.isin ?? "-"}</TableCell>
-                      <TableCell>{asset.asset_class ?? "-"}</TableCell>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="max-h-[800px] overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background hover:bg-background">
+                    <TableRow>
+                      <TableHead>Ticker</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          {error && <div className="text-sm text-red-300">{error}</div>}
-          <Button onClick={handleUpload} disabled={isUploading || parsedAssets.length === 0} className="w-full">
-            Upload Portfolio Assets
-          </Button>
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAssets.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                          No assets found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredAssets.map((asset) => (
+                        <TableRow key={asset.id}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-mono font-medium">{asset.ticker || asset.ticker_eod || "—"}</span>
+                              {asset.isin && <span className="text-[10px] text-muted-foreground">{asset.isin}</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col max-w-[200px]">
+                              <span className="truncate" title={asset.stock_name ?? ""}>{asset.stock_name ?? "Unknown"}</span>
+                              {!asset.ticker_eod && !asset.ticker && (
+                                <span className="flex items-center gap-1 text-[10px] text-red-400">
+                                  <AlertTriangle className="h-3 w-3" /> Missing Ticker
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">{asset.asset_class ?? "Other"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleRowEnrich(asset.id)}>
+                                <RefreshCw className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(asset.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card className="p-6">
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>Portfolio Assets</CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant={supabaseReady ? "success" : "warning"}>
-                {supabaseReady ? "Live" : "Offline"}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled
-                className="gap-2"
-              >
-                Enrich All
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Portfolio</TableHead>
-                <TableHead>Ticker</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assets.map((asset) => (
-                <TableRow key={asset.id}>
-                  <TableCell className="font-mono text-xs">{asset.portfolio_id ?? "-"}</TableCell>
-                  <TableCell>{asset.ticker ?? "-"}</TableCell>
-                  <TableCell>{asset.stock_name ?? "-"}</TableCell>
-                  <TableCell>{asset.asset_class ?? "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleRowEnrich(asset.id)}>
-                        Enrich
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(asset.id)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <EnrichmentResultsModal
-        isOpen={showResultsModal}
-        onClose={() => setShowResultsModal(false)}
-        results={enrichmentResults}
-        summary={enrichmentSummary}
-        onReEnrich={async (assetId, tickerOverride) => {
-          const response = await fetch("/api/portfolio-assets/enrich", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mode: "single",
-              asset_id: assetId,
-              ticker_override: tickerOverride,
-              skipEnriched: false
-            })
-          });
-          if (response.ok) {
-            router.refresh();
-          }
-        }}
-        onMarkReviewed={async (assetId) => {
-          const response = await fetch(`/api/portfolio-assets/${assetId}/mark-reviewed`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reviewed_by: "user" })
-          });
-          if (response.ok) {
-            // Update local state to reflect reviewed status
-            setEnrichmentResults((prev) =>
-              prev.map((r) =>
-                r.asset_id === assetId ? { ...r, status: "updated" as const } : r
-              )
-            );
-            router.refresh();
-          }
-        }}
-      />
+        {showResultsModal && (
+          <EnrichmentResultsModal
+            isOpen={showResultsModal}
+            onClose={() => setShowResultsModal(false)}
+            results={enrichmentResults}
+            summary={enrichmentSummary}
+            onReEnrich={() => handleBatchEnrich("portfolio")}
+          />
+        )}
+      </div>
     </section>
   );
 }

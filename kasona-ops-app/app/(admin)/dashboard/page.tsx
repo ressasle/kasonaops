@@ -1,4 +1,3 @@
-import tasks from "@/data/tasks.json";
 import { CustomerPipeline } from "@/components/admin/customer-pipeline";
 import { PageHeader } from "@/components/admin/page-header";
 import Link from "next/link";
@@ -8,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCustomers, getInvestorProfiles } from "@/lib/data/customers";
+import { getTasks } from "@/lib/data/tasks";
 
 export default async function DashboardPage() {
-  const [customers, profiles] = await Promise.all([getCustomers(), getInvestorProfiles()]);
+  const [customers, profiles, tasks] = await Promise.all([getCustomers(), getInvestorProfiles(), getTasks()]);
   const supabaseReady = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -118,14 +118,18 @@ export default async function DashboardPage() {
             <Button variant="outline">Assign</Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {tasks.map((task) => (
-              <div key={task.task_id} className="rounded-2xl border border-border/60 p-3">
+            {tasks.slice(0, 6).map((task) => (
+              <div key={task.id} className="rounded-2xl border border-border/60 p-3">
                 <div className="text-sm font-medium">{task.title}</div>
                 <div className="text-xs text-muted-foreground">Owner: {task.owner_id}</div>
                 <div className="mt-2">
                   <Badge
                     variant={
-                      task.priority === "high" ? "danger" : task.priority === "medium" ? "warning" : "default"
+                      task.priority === "urgent" || task.priority === "high"
+                        ? "danger"
+                        : task.priority === "medium"
+                          ? "warning"
+                          : "default"
                     }
                   >
                     {task.priority}

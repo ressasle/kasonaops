@@ -69,7 +69,7 @@ const mapRow = (row: CsvRow, index: number): CustomerBasicInfo => {
     action_status: "New",
     reminder_date: null,
     source: (row.Source?.trim() as CustomerBasicInfo["source"]) ?? null,
-    type: "Warm Lead",
+    type: "customer",
     n_portfolios: 0,
     status: "Lead Identified",
     product_type: row.Product?.trim() || null,
@@ -94,7 +94,10 @@ const mapRow = (row: CsvRow, index: number): CustomerBasicInfo => {
     previous_stage: null,
     changed_by: null,
     change_reason: null,
-    notes: row.comment?.trim() || null
+    notes: row.comment?.trim() || null,
+    payment_terms: null,
+    owner_id: null,
+    creator_id: null
   };
 };
 

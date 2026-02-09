@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCheck, LayoutGrid, Megaphone, Settings, Users, DollarSign } from "lucide-react";
+import { ClipboardCheck, DollarSign, LayoutGrid, Megaphone, Settings, Users, Users2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +12,7 @@ const navItems = [
   { label: "Sales", href: "/sales", icon: Megaphone },
   { label: "Operations", href: "/operations", icon: ClipboardCheck },
   { label: "Customers", href: "/customers", icon: Users },
+  { label: "Team", href: "/team", icon: Users2 },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Settings", href: "/settings", icon: Settings }
 ];

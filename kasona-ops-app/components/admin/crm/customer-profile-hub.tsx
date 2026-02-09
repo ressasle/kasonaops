@@ -1,19 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Pencil, Sparkles, TrendingUp } from "lucide-react";
+import { AlertCircle, FileText, Pencil, Plus, Rocket, Sparkles, TrendingUp } from "lucide-react";
 
 import { CompanyProfile } from "@/components/admin/crm/company-profile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { CustomerBasicInfo, InvestorProfile, PortfolioAsset } from "@/lib/data/types";
+import type { CustomerBasicInfo, CustomerContact, CustomerLink, InvestorProfile, PortfolioAsset } from "@/lib/data/types";
 
 type CustomerProfileHubProps = {
   customer: CustomerBasicInfo;
   profiles: InvestorProfile[];
   assets: PortfolioAsset[];
+  contacts: CustomerContact[];
+  links: CustomerLink[];
 };
+
+const PROFILE_SECTIONS = [
+  { id: "company-overview", label: "Company" },
+  { id: "finance-snapshot", label: "Finance" },
+  { id: "investor-profiles", label: "Investor" },
+  { id: "portfolio-assets", label: "Portfolio" },
+  { id: "contact-persons", label: "Contacts" },
+  { id: "customer-links", label: "Links" },
+];
 
 const mockFiles = [
   { name: "Portfolio_Import_Feb.pdf", type: "PDF", date: "2026-02-05" },
@@ -29,7 +40,13 @@ const mockTokenUsage = [
 
 const formatTokens = (value: number) => new Intl.NumberFormat("en-US").format(value);
 
-export function CustomerProfileHub({ customer, profiles, assets }: CustomerProfileHubProps) {
+export function CustomerProfileHub({ customer, profiles, assets, contacts, links }: CustomerProfileHubProps) {
+  const scrollToSection = (sectionId: string) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -59,6 +76,23 @@ export function CustomerProfileHub({ customer, profiles, assets }: CustomerProfi
         </div>
       </div>
 
+      {/* Missing Info Indicator */}
+      {(() => {
+        const missing: string[] = [];
+        if (!customer.contact_person_name) missing.push("Contact Person");
+        if (!customer.contact_person_position) missing.push("Position");
+        if (!customer.email) missing.push("Email");
+        if (!customer.industry) missing.push("Industry");
+        if (!customer.type) missing.push("Type");
+        if (!customer.phone) missing.push("Phone");
+        return missing.length > 0 ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-sm text-yellow-200">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>{missing.length} fields incomplete: {missing.join(", ")}</span>
+          </div>
+        ) : null;
+      })()}
+
       <Card className="p-6">
         <CardHeader>
           <CardTitle>Wealth Intelligence</CardTitle>
@@ -77,12 +111,34 @@ export function CustomerProfileHub({ customer, profiles, assets }: CustomerProfi
             </Link>
           </Button>
           <Button asChild variant="outline" className="gap-2">
+            <Link href={`/onboarding?company_id=${customer.company_id}&company_name=${encodeURIComponent(customer.company_name)}`}>
+              <Rocket className="h-4 w-4" />
+              Start Onboarding
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
             <Link href="/tasks#new-task">New Task</Link>
           </Button>
         </CardContent>
       </Card>
 
-      <CompanyProfile customer={customer} profiles={profiles} assets={assets} />
+      <Card className="glass-panel sticky top-16 z-10 p-3">
+        <CardContent className="flex flex-wrap gap-2 p-0">
+          {PROFILE_SECTIONS.map((section) => (
+            <Button
+              key={section.id}
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              onClick={() => scrollToSection(section.id)}
+            >
+              {section.label}
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
+
+      <CompanyProfile customer={customer} profiles={profiles} assets={assets} contacts={contacts} links={links} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">

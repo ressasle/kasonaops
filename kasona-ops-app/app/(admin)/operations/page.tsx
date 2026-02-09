@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFulfillmentQueue } from "@/lib/data/operations";
+import { getTasksByCategories } from "@/lib/data/tasks";
+import { CategoryTasksCard } from "@/components/admin/tasks/category-tasks-card";
 
 type OperationsPageProps = {
   searchParams?: Promise<{
@@ -21,7 +23,10 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
   const activeView = resolvedSearchParams?.view ?? "queue";
   const isAdmin = resolvedSearchParams?.admin === "true";
   const currentUserId = resolvedSearchParams?.ownerId ?? null;
-  const queue = await getFulfillmentQueue();
+  const [queue, fulfillmentTasks] = await Promise.all([
+    getFulfillmentQueue(),
+    getTasksByCategories(["fulfillment"]),
+  ]);
 
   const qaChecklist = [
     { label: "Portfolio completeness", value: `${queue.filter((item) => !item.output_format).length} waiting` },
@@ -118,6 +123,8 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
               ))}
             </CardContent>
           </Card>
+
+          <CategoryTasksCard title="Fulfillment Tasks" tasks={fulfillmentTasks} />
         </section>
       )}
     </div>

@@ -35,7 +35,7 @@ export async function getInvestorProfiles(): Promise<InvestorProfile[]> {
   const { data, error } = await supabase
     .from("kasona_investor_profiles")
     .select(
-      "id, company_id, customer_name, portfolio_id, portfolio_name, product_status, output_format, output_frequency, data_granularity, action_frequency, decision_logic, risk_appetite, last_document_link, recipient_email, telegram_id, investment_philosophy, noise_filter, updated_at, created_at"
+      "id, company_id, customer_name, portfolio_id, portfolio_name, product_status, output_format, output_frequency, data_granularity, action_frequency, decision_logic, risk_appetite, last_document_link, recipient_email, telegram_id, investment_philosophy, noise_filter, updated_at, created_at, owner_id, creator_id"
     )
     .order("updated_at", { ascending: false });
 

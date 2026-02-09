@@ -1,22 +1,66 @@
 -- Supabase Schema for CRM & Operations
 
 -- 0. Team Members
-CREATE TABLE team_members (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    role TEXT, -- 'CEO', 'Sales', 'Assistant', 'Finance', 'Tech', 'AI Software'
-    email TEXT
+CREATE TABLE kasona_team_members (
+    -- Identity
+    member_id       TEXT PRIMARY KEY,           -- e.g. 'julian', 'jakob'
+    first_name      TEXT NOT NULL,
+    last_name       TEXT NOT NULL,
+    display_name    TEXT NOT NULL,
+    email           TEXT UNIQUE NOT NULL,
+    phone           TEXT,
+    avatar_url      TEXT,
+
+    -- HR / Employment
+    date_of_birth   DATE,
+    hire_date       DATE,
+    termination_date DATE,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    contract_type   TEXT CHECK (contract_type IN (
+      'full_time', 'part_time', 'freelancer', 'working_student', 'intern'
+    )),
+    salary_gross    NUMERIC(10,2),
+    salary_currency TEXT DEFAULT 'EUR',
+    tax_id          TEXT,
+    social_security_id TEXT,
+
+    -- Address
+    street          TEXT,
+    city            TEXT,
+    postal_code     TEXT,
+    country         TEXT DEFAULT 'DE',
+
+    -- Bank / Payroll
+    iban            TEXT,
+    bank_name       TEXT,
+
+    -- App Role & Permissions
+    role            TEXT NOT NULL CHECK (role IN (
+      'admin', 'manager', 'analyst', 'assistant', 'viewer'
+    )),
+    department      TEXT CHECK (department IN (
+      'management', 'sales', 'operations', 'finance', 'tech'
+    )),
+    job_title       TEXT,
+
+    -- Auth Link (future)
+    auth_user_id    UUID UNIQUE,
+
+    -- Meta
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    notes           TEXT
 );
 
--- Initial Data
-INSERT INTO team_members (name, role) VALUES
-('Julian', 'CEO'),
-('Jakob', 'Sales'),
-('Clara', 'Assistant'),
-('Niclas', 'Finance'),
-('Kelvin', 'Tech'),
-('Cedric', 'Tech'),
-('Kasona', 'AI Software');
+-- Seed Data
+INSERT INTO kasona_team_members (member_id, first_name, last_name, display_name, email, role, department, job_title, is_active) VALUES
+  ('julian',  'Julian',  'Elsasser', 'Julian Elsasser',  'julian@elvision-analytics.com', 'admin',    'management',  'CEO',              TRUE),
+  ('jakob',   'Jakob',   '',         'Jakob',             'jakob@elvision-analytics.com',  'manager',  'sales',       'Sales Lead',       TRUE),
+  ('clara',   'Clara',   '',         'Clara',             'clara@elvision-analytics.com',  'assistant','operations',  'Assistant',        TRUE),
+  ('niclas',  'Niclas',  '',         'Niclas',            'niclas@elvision-analytics.com', 'analyst',  'finance',     'Finance Analyst',  TRUE),
+  ('kelvin',  'Kelvin',  '',         'Kelvin',            'kelvin@elvision-analytics.com', 'analyst',  'tech',        'Tech Lead',        TRUE),
+  ('cedric',  'Cedric',  '',         'Cedric',            'cedric@elvision-analytics.com', 'analyst',  'tech',        'Developer',        TRUE),
+  ('kasona',  'Kasona',  'AI',       'Kasona AI',         'kasona@elvision-analytics.com', 'viewer',   'tech',        'AI Software',      TRUE);
 
 -- 1. Customer Basic Info
 CREATE TABLE kasona_customer_basic_info (
@@ -34,7 +78,7 @@ CREATE TABLE kasona_customer_basic_info (
     
     -- Sales Info
     source TEXT CHECK (source IN ('Inbound', 'Outbound')),
-    type TEXT CHECK (type IN ('Customer', 'Warm Lead')),
+    type TEXT CHECK (type IN ('customer', 'partner', 'supplier', 'other')),
     n_portfolios INT DEFAULT 0,
     status TEXT CHECK (status IN ('Churned', 'Closed Lost', 'Expanded', 'Closed Won', 'Paid User', 'Free User', 'Offer Sent', 'Offer Generated', 'Meeting Booked', 'Lead Manget Sent', 'Lead Enriched', 'Lead Captured', 'Lead Identified')),
     product_type TEXT, -- 'Wealth Intelligence', 'Transformations Paket', etc.
@@ -49,10 +93,15 @@ CREATE TABLE kasona_customer_basic_info (
     contract_size NUMERIC,
     start_date DATE,
     end_date DATE,
-    charge_type TEXT CHECK (charge_type IN ('Reatiner', 'Per Hour', 'Package', 'Fixed Fee')),
+    charge_type TEXT CHECK (charge_type IN ('Retainer', 'Per Hour', 'Package', 'Fixed Fee')),
     billing_type TEXT CHECK (billing_type IN ('Quarterly', 'Monthly', 'Project-based', 'Per Output')),
     billing_address TEXT,
     billing_email TEXT,
+    payment_terms INT, -- days, e.g. 14, 30, 60
+
+    -- Ownership
+    owner_id TEXT REFERENCES kasona_team_members(member_id),
+    creator_id TEXT REFERENCES kasona_team_members(member_id),
 
     -- Documentation Info
     is_current BOOLEAN DEFAULT TRUE,
@@ -75,8 +124,8 @@ CREATE TABLE kasona_investor_profiles (
     customer_name TEXT, -- Can be a computed field or denormalized
     portfolio_id TEXT UNIQUE NOT NULL, -- e.g., '261001-A'
     portfolio_name TEXT,
-    creator_id UUID REFERENCES team_members(id),
-    owner_id UUID REFERENCES team_members(id), -- Default Jakob
+    creator_id TEXT REFERENCES kasona_team_members(member_id),
+    owner_id TEXT REFERENCES kasona_team_members(member_id),
     
     -- Product Info
     product_status TEXT CHECK (product_status IN ('to create', 'created', 'to review', 'to send', 'sent out')),

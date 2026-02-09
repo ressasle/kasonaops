@@ -1,8 +1,33 @@
 export type TeamMember = {
-  id: string;
-  name: string;
-  role: string | null;
-  email: string | null;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  date_of_birth: string | null;
+  hire_date: string | null;
+  termination_date: string | null;
+  is_active: boolean;
+  contract_type: 'full_time' | 'part_time' | 'freelancer' | 'working_student' | 'intern' | null;
+  salary_gross: number | null;
+  salary_currency: string | null;
+  tax_id: string | null;
+  social_security_id: string | null;
+  street: string | null;
+  city: string | null;
+  postal_code: string | null;
+  country: string | null;
+  iban: string | null;
+  bank_name: string | null;
+  role: 'admin' | 'manager' | 'analyst' | 'assistant' | 'viewer';
+  department: 'management' | 'sales' | 'operations' | 'finance' | 'tech' | null;
+  job_title: string | null;
+  auth_user_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  notes: string | null;
 };
 
 export type CustomerBasicInfo = {
@@ -16,34 +41,34 @@ export type CustomerBasicInfo = {
   phone: string | null;
   industry: "Investing" | "Industrial Services" | "Consulting" | "E-Commerce" | null;
   action_status:
-    | "Renewed"
-    | "To Expand"
-    | "Backlog"
-    | "New"
-    | "To Check"
-    | "Reminder Set"
-    | "To Reach Out"
-    | "Mail Sent"
-    | null;
+  | "Renewed"
+  | "To Expand"
+  | "Backlog"
+  | "New"
+  | "To Check"
+  | "Reminder Set"
+  | "To Reach Out"
+  | "Mail Sent"
+  | null;
   reminder_date: string | null;
   source: "Inbound" | "Outbound" | null;
-  type: "Customer" | "Warm Lead" | null;
+  type: "customer" | "partner" | "supplier" | "other" | null;
   n_portfolios: number | null;
   status:
-    | "Churned"
-    | "Closed Lost"
-    | "Expanded"
-    | "Closed Won"
-    | "Paid User"
-    | "Free User"
-    | "Offer Sent"
-    | "Offer Generated"
-    | "Meeting Booked"
-    | "Lead Manget Sent"
-    | "Lead Enriched"
-    | "Lead Captured"
-    | "Lead Identified"
-    | null;
+  | "Churned"
+  | "Closed Lost"
+  | "Expanded"
+  | "Closed Won"
+  | "Paid User"
+  | "Free User"
+  | "Offer Sent"
+  | "Offer Generated"
+  | "Meeting Booked"
+  | "Lead Manget Sent"
+  | "Lead Enriched"
+  | "Lead Captured"
+  | "Lead Identified"
+  | null;
   product_type: string | null;
   hq_location: string | null;
   country: string | null;
@@ -67,6 +92,48 @@ export type CustomerBasicInfo = {
   changed_by: string | null;
   change_reason: string | null;
   notes: string | null;
+  payment_terms: number | null;
+  owner_id: string | null;
+  creator_id: string | null;
+};
+
+export type CustomerContact = {
+  id: string;
+  company_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  email: string | null;
+  phone: string | null;
+  is_primary: boolean | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  owner_id: string | null;
+  creator_id: string | null;
+};
+
+export type CustomerLink = {
+  id: string;
+  company_id: number;
+  title: string;
+  url: string;
+  link_type: "folder" | "document" | "website" | "other" | null;
+  created_at: string | null;
+  created_by: string | null;
+};
+
+export type CustomerDocument = {
+  id: string;
+  company_id: number;
+  doc_type: "file" | "note";
+  title: string;
+  content: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export type InvestorProfile = {
@@ -125,6 +192,8 @@ export type PortfolioAsset = {
   ticker_eod: string | null;
   isin: string | null;
   asset_class: "Crypto" | "Stocks" | "ETF" | "Other" | null;
+  shares: number | null;
+  avg_cost: number | null;
   website_url: string | null;
   logo_url: string | null;
   fiscal_year_end: string | null;
@@ -147,3 +216,30 @@ export type InvestorProfileUpdate = Partial<InvestorProfile>;
 export type PortfolioAssetInsert = Partial<PortfolioAsset> & {
   portfolio_id: string;
 };
+
+export type Task = {
+  id: string;
+  company_id: number | null;
+  owner_id: string | null;
+  creator_id: string | null;
+  title: string;
+  description: string | null;
+  status: "todo" | "in_progress" | "blocked" | "done";
+  priority: "low" | "medium" | "high" | "urgent";
+  category: "sales" | "finance" | "fulfillment" | "product" | "team" | "general" | null;
+  due_date: string | null;
+  reminder_date: string | null;
+  completed_at: string | null;
+  source: "manual" | "automation" | "system";
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type TaskInsert = Partial<Task> & {
+  title: string;
+};
+
+export type TaskUpdate = Partial<Task>;

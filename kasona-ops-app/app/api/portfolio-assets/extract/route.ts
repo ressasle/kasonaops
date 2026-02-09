@@ -11,18 +11,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
-    const fileType = formData.get("fileType") as string | null;
+    const contentType = req.headers.get("content-type") || "";
+    let base64Data = "";
+    let mimeType = "application/octet-stream";
+    let fileType: string | null = null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      fileType = formData.get("fileType") as string | null;
+
+      if (!file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      base64Data = Buffer.from(arrayBuffer).toString("base64");
+      mimeType = file.type || inferMimeType(file.name);
+    } else {
+      const body = (await req.json()) as {
+        file?: string;
+        filename?: string;
+        mimetype?: string;
+        fileType?: string;
+      };
+
+      if (!body.file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      base64Data = body.file;
+      fileType = body.fileType ?? null;
+      mimeType = body.mimetype || inferMimeType(body.filename);
     }
-
-    // Convert file to base64
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString("base64");
-    const mimeType = file.type;
 
     // Initialize Gemini with 2.0 Flash model
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -87,6 +108,16 @@ ${EXTRACTION_OUTPUT_FORMAT}
       { status: 500 }
     );
   }
+}
+
+function inferMimeType(filename?: string): string {
+  const extension = filename?.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return "application/pdf";
+  if (extension === "csv") return "text/csv";
+  if (extension === "png") return "image/png";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+  if (extension === "webp") return "image/webp";
+  return "application/octet-stream";
 }
 
 // ============================================================================

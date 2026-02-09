@@ -10,24 +10,99 @@ export type Json =
 export interface Database {
     public: {
         Tables: {
-            team_members: {
+            kasona_team_members: {
                 Row: {
-                    id: string
-                    name: string
-                    role: string | null
-                    email: string | null
+                    member_id: string
+                    first_name: string
+                    last_name: string
+                    display_name: string
+                    email: string
+                    phone: string | null
+                    avatar_url: string | null
+                    date_of_birth: string | null
+                    hire_date: string | null
+                    termination_date: string | null
+                    is_active: boolean
+                    contract_type: 'full_time' | 'part_time' | 'freelancer' | 'working_student' | 'intern' | null
+                    salary_gross: number | null
+                    salary_currency: string | null
+                    tax_id: string | null
+                    social_security_id: string | null
+                    street: string | null
+                    city: string | null
+                    postal_code: string | null
+                    country: string | null
+                    iban: string | null
+                    bank_name: string | null
+                    role: 'admin' | 'manager' | 'analyst' | 'assistant' | 'viewer'
+                    department: 'management' | 'sales' | 'operations' | 'finance' | 'tech' | null
+                    job_title: string | null
+                    auth_user_id: string | null
+                    created_at: string | null
+                    updated_at: string | null
+                    notes: string | null
                 }
                 Insert: {
-                    id?: string
-                    name: string
-                    role?: string | null
-                    email?: string | null
+                    member_id: string
+                    first_name: string
+                    last_name: string
+                    display_name: string
+                    email: string
+                    phone?: string | null
+                    avatar_url?: string | null
+                    date_of_birth?: string | null
+                    hire_date?: string | null
+                    termination_date?: string | null
+                    is_active?: boolean
+                    contract_type?: 'full_time' | 'part_time' | 'freelancer' | 'working_student' | 'intern' | null
+                    salary_gross?: number | null
+                    salary_currency?: string | null
+                    tax_id?: string | null
+                    social_security_id?: string | null
+                    street?: string | null
+                    city?: string | null
+                    postal_code?: string | null
+                    country?: string | null
+                    iban?: string | null
+                    bank_name?: string | null
+                    role: 'admin' | 'manager' | 'analyst' | 'assistant' | 'viewer'
+                    department?: 'management' | 'sales' | 'operations' | 'finance' | 'tech' | null
+                    job_title?: string | null
+                    auth_user_id?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                    notes?: string | null
                 }
                 Update: {
-                    id?: string
-                    name?: string
-                    role?: string | null
-                    email?: string | null
+                    member_id?: string
+                    first_name?: string
+                    last_name?: string
+                    display_name?: string
+                    email?: string
+                    phone?: string | null
+                    avatar_url?: string | null
+                    date_of_birth?: string | null
+                    hire_date?: string | null
+                    termination_date?: string | null
+                    is_active?: boolean
+                    contract_type?: 'full_time' | 'part_time' | 'freelancer' | 'working_student' | 'intern' | null
+                    salary_gross?: number | null
+                    salary_currency?: string | null
+                    tax_id?: string | null
+                    social_security_id?: string | null
+                    street?: string | null
+                    city?: string | null
+                    postal_code?: string | null
+                    country?: string | null
+                    iban?: string | null
+                    bank_name?: string | null
+                    role?: 'admin' | 'manager' | 'analyst' | 'assistant' | 'viewer'
+                    department?: 'management' | 'sales' | 'operations' | 'finance' | 'tech' | null
+                    job_title?: string | null
+                    auth_user_id?: string | null
+                    created_at?: string | null
+                    updated_at?: string | null
+                    notes?: string | null
                 }
             }
             kasona_customer_basic_info: {
@@ -44,7 +119,7 @@ export interface Database {
                     action_status: 'Renewed' | 'To Expand' | 'Backlog' | 'New' | 'To Check' | 'Reminder Set' | 'To Reach Out' | 'Mail Sent' | null
                     reminder_date: string | null
                     source: 'Inbound' | 'Outbound' | null
-                    type: 'Customer' | 'Warm Lead' | null
+                    type: 'customer' | 'partner' | 'supplier' | 'other' | null
                     n_portfolios: number | null
                     status: 'Churned' | 'Closed Lost' | 'Expanded' | 'Closed Won' | 'Paid User' | 'Free User' | 'Offer Sent' | 'Offer Generated' | 'Meeting Booked' | 'Lead Manget Sent' | 'Lead Enriched' | 'Lead Captured' | 'Lead Identified' | null
                     product_type: string | null
@@ -70,6 +145,8 @@ export interface Database {
                     changed_by: string | null
                     change_reason: string | null
                     notes: string | null
+                    payment_terms: number | null
+                    owner_id: string | null
                 }
                 Insert: {
                     company_id?: number
@@ -84,7 +161,7 @@ export interface Database {
                     action_status?: 'Renewed' | 'To Expand' | 'Backlog' | 'New' | 'To Check' | 'Reminder Set' | 'To Reach Out' | 'Mail Sent' | null
                     reminder_date?: string | null
                     source?: 'Inbound' | 'Outbound' | null
-                    type?: 'Customer' | 'Warm Lead' | null
+                    type?: 'customer' | 'partner' | 'supplier' | 'other' | null
                     n_portfolios?: number | null
                     status?: 'Churned' | 'Closed Lost' | 'Expanded' | 'Closed Won' | 'Paid User' | 'Free User' | 'Offer Sent' | 'Offer Generated' | 'Meeting Booked' | 'Lead Manget Sent' | 'Lead Enriched' | 'Lead Captured' | 'Lead Identified' | null
                     product_type?: string | null
@@ -110,6 +187,8 @@ export interface Database {
                     changed_by?: string | null
                     change_reason?: string | null
                     notes?: string | null
+                    payment_terms?: number | null
+                    owner_id?: string | null
                 }
                 Update: {
                     company_id?: number
@@ -124,7 +203,7 @@ export interface Database {
                     action_status?: 'Renewed' | 'To Expand' | 'Backlog' | 'New' | 'To Check' | 'Reminder Set' | 'To Reach Out' | 'Mail Sent' | null
                     reminder_date?: string | null
                     source?: 'Inbound' | 'Outbound' | null
-                    type?: 'Customer' | 'Warm Lead' | null
+                    type?: 'customer' | 'partner' | 'supplier' | 'other' | null
                     n_portfolios?: number | null
                     status?: 'Churned' | 'Closed Lost' | 'Expanded' | 'Closed Won' | 'Paid User' | 'Free User' | 'Offer Sent' | 'Offer Generated' | 'Meeting Booked' | 'Lead Manget Sent' | 'Lead Enriched' | 'Lead Captured' | 'Lead Identified' | null
                     product_type?: string | null
@@ -150,6 +229,8 @@ export interface Database {
                     changed_by?: string | null
                     change_reason?: string | null
                     notes?: string | null
+                    payment_terms?: number | null
+                    owner_id?: string | null
                 }
             }
             kasona_investor_profiles: {

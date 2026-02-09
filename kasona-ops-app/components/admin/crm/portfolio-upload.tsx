@@ -20,10 +20,13 @@ type Asset = {
     isin?: string;
     shares?: number | string;
     avgCost?: number | string;
+    category?: string;
     asset_class?: string;
     sector?: string;
     currency?: string;
 };
+
+type FileCategory = "csv" | "pdf" | "image" | null;
 
 const EMPTY_HOLDING: Asset = {
     stock_name: "",
@@ -31,25 +34,37 @@ const EMPTY_HOLDING: Asset = {
     isin: "",
     shares: "",
     avgCost: "",
+    category: "",
     asset_class: "Stocks",
     sector: "",
     currency: ""
 };
 
-const fileToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result.split(",")[1]);
-        };
-        reader.onerror = (error) => reject(error);
-    });
+const SUPPORTED_TYPES = {
+    csv: ["text/csv", "application/csv", "text/plain"],
+    pdf: ["application/pdf"],
+    image: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+};
+
+const getFileCategory = (file: File): FileCategory => {
+    const mimeType = file.type;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    if (extension === "csv") return "csv";
+    if (extension === "pdf") return "pdf";
+    if (["png", "jpg", "jpeg", "webp"].includes(extension ?? "")) return "image";
+
+    if (SUPPORTED_TYPES.csv.includes(mimeType)) return "csv";
+    if (SUPPORTED_TYPES.pdf.includes(mimeType)) return "pdf";
+    if (SUPPORTED_TYPES.image.includes(mimeType)) return "image";
+
+    return null;
+};
 
 export function PortfolioUpload({ companyId, portfolioId, onComplete }: PortfolioUploadProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [file, setFile] = useState<File | null>(null);
+    const [fileCategory, setFileCategory] = useState<FileCategory>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [extractedData, setExtractedData] = useState<Asset[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -74,18 +89,27 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
 
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const droppedFile = e.dataTransfer.files[0];
-            if (droppedFile.type === "application/pdf") {
+            const category = getFileCategory(droppedFile);
+            if (category) {
                 setFile(droppedFile);
+                setFileCategory(category);
                 setError(null);
             } else {
-                setError("Please upload a PDF file.");
+                setError("Unsupported file type. Please upload CSV, PDF, or image files.");
             }
         }
     }, []);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+            const selectedFile = e.target.files[0];
+            const category = getFileCategory(selectedFile);
+            if (!category) {
+                setError("Unsupported file type. Please upload CSV, PDF, or image files.");
+                return;
+            }
+            setFile(selectedFile);
+            setFileCategory(category);
             setError(null);
         }
     };
@@ -118,11 +142,13 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
         setError(null);
 
         try {
-            const base64 = await fileToBase64(file);
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("fileType", fileCategory ?? "unknown");
+
             const response = await fetch("/api/portfolio-assets/extract", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ file: base64, filename: file.name, mimetype: file.type })
+                body: formData,
             });
 
             if (!response.ok) {
@@ -131,7 +157,7 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
             }
 
             const result = await response.json();
-            setExtractedData(result.holdings ?? []);
+            setExtractedData(result.data ?? result.holdings ?? []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Extraction failed");
         } finally {
@@ -161,15 +187,13 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
                         ticker: asset.ticker || null,
                         stock_name: asset.stock_name || null,
                         isin: asset.isin || null,
+                        category: asset.category || null,
                         asset_class: asset.asset_class || null,
                         sector: asset.sector || null,
                         currency: asset.currency || null,
-                        owner_comment: [
-                            asset.shares ? `shares: ${asset.shares}` : null,
-                            asset.avgCost ? `avgCost: ${asset.avgCost}` : null
-                        ]
-                            .filter(Boolean)
-                            .join(", ") || null
+                        shares: asset.shares === "" || asset.shares === undefined ? null : Number(asset.shares),
+                        avg_cost: asset.avgCost === "" || asset.avgCost === undefined ? null : Number(asset.avgCost),
+                        owner_comment: null,
                     }))
                 })
             });
@@ -239,6 +263,10 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
                                         <option value="Other">Other</option>
                                     </select>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label>Category</Label>
+                                    <Input value={manualHolding.category ?? ""} onChange={handleHoldingChange("category")} placeholder="e.g. Growth" />
+                                </div>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
                                 <div className="space-y-2">
@@ -262,15 +290,15 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
                         <Upload className="h-8 w-8" />
                     </div>
                     <h3 className="text-lg font-semibold">Upload Portfolio</h3>
-                    <p className="mb-4 mt-2 text-sm text-muted-foreground max-w-xs">
-                        Drag and drop your PDF report or CSV here. AI will extract holdings.
-                    </p>
+                     <p className="mb-4 mt-2 text-sm text-muted-foreground max-w-xs">
+                        Drag and drop your PDF, CSV, or screenshot. AI will extract holdings.
+                     </p>
 
                     <input
                         type="file"
                         id="file-upload"
                         className="hidden"
-                        accept=".pdf"
+                        accept=".csv,.pdf,.png,.jpg,.jpeg,.webp"
                         onChange={handleFileChange}
                     />
 
@@ -347,7 +375,7 @@ export function PortfolioUpload({ companyId, portfolioId, onComplete }: Portfoli
                             </div>
 
                             <div className="mt-6 pt-4 border-t flex justify-end gap-3">
-                                <Button variant="outline" onClick={() => { setExtractedData(null); setFile(null); setManualHoldings([]); }}>
+                                <Button variant="outline" onClick={() => { setExtractedData(null); setFile(null); setFileCategory(null); setManualHoldings([]); }}>
                                     Discard
                                 </Button>
                                 <Button onClick={saveAssets} disabled={isProcessing} className="bg-primary hover:bg-primary/90">

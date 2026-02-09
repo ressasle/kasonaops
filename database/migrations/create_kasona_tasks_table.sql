@@ -1,0 +1,20 @@
+CREATE TABLE kasona_tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id INT REFERENCES kasona_customer_basic_info(company_id),
+  owner_id TEXT REFERENCES kasona_team_members(member_id),
+  creator_id TEXT REFERENCES kasona_team_members(member_id),
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT CHECK (status IN ('todo', 'in_progress', 'blocked', 'done')) DEFAULT 'todo',
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+  category TEXT CHECK (category IN ('sales', 'finance', 'fulfillment', 'product', 'team', 'general')),
+  due_date DATE,
+  reminder_date TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  source TEXT CHECK (source IN ('manual', 'automation', 'system')) DEFAULT 'manual',
+  related_entity_type TEXT,
+  related_entity_id TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);

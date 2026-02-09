@@ -57,14 +57,26 @@ Additional fields:
 
 ---
 
-### Option 3: CSV Import
-**Status**: ⚠️ Partial (needs UI)
+### Option 3: CSV Import / Bulk Upload
+**Status**: ✅ Available
 
-1. Prepare CSV with columns: `stock_name`, `ticker`, `isin`, `currency`, `asset_class`, `sector`
-2. Upload CSV (if UI exists) or use API
-3. Bulk insert → auto-enrich
+1. Use "Import Assets" in Portfolio Manager.
+2. Supports:
+    - **CSV**: Columns `stock_name`, `ticker`, `isin`, `currency`, `asset_class`
+    - **PDF**: Bank statements (AI extraction)
+    - **Images**: Screenshots of portfolio (AI extraction)
+3. Review extracted data in the dialog.
+4. Confirm to bulk insert -> auto-enrich.
 
-**Employee fills**: Prepare CSV, review/confirm
+---
+
+### Option 4: Investor Profile Import
+**Status**: ✅ Available
+
+1. Go to **Investor Profile Manager**.
+2. Click "Import CSV".
+3. Upload CSV with headers: `portfolio_id` (mandatory), `risk_appetite`, `data_granularity`, `output_format`.
+4. System bulk upserts profiles matched by `portfolio_id`.
 
 ---
 
@@ -186,9 +198,8 @@ When EODHD cannot find a match:
 
 | Gap | Status | Priority |
 |-----|--------|----------|
-| CSV Import UI | No frontend UI, API exists | 🟡 Medium |
-| Failed match notification | No push notification/email | 🟡 Medium |
-| Bulk review UI | No UI to filter/review failed assets | 🟡 Medium |
+| Failed match notification | Implemented (Toast) | 🟢 Low |
+| Bulk review UI | Implemented (Filter) | 🟢 Low |
 | Logo population | Not always populated by EODHD | 🟢 Low |
 
 ### ❌ Missing Features

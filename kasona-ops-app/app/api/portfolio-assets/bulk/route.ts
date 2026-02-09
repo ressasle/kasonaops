@@ -8,10 +8,13 @@ type AssetPayload = {
     isin?: string;
     currency?: string;
     asset_class?: string;
+    category?: string;
     sector?: string;
     owner_comment?: string;
     amount?: number;
     shares?: number;
+    avg_cost?: number;
+    avgCost?: number;
     price?: number;
 };
 
@@ -35,6 +38,12 @@ const normalizeAssetClass = (value?: string): AssetClass => {
     return "Other";
 };
 
+const normalizeOptionalNumber = (value?: number | string): number | null => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 export async function POST(request: Request) {
     const supabase = getSupabaseServerClient();
     if (!supabase) {
@@ -52,17 +61,26 @@ export async function POST(request: Request) {
     }
 
     // Map assets to schema columns
-    const dbAssets = assets.map((asset) => ({
-        portfolio_id,
-        company_id: company_id ?? null,
-        stock_name: asset.stock_name || asset.name || null,
-        ticker: asset.ticker || null,
-        isin: asset.isin || null,
-        currency: asset.currency || null,
-        asset_class: normalizeAssetClass(asset.asset_class),
-        sector: asset.sector || null,
-        owner_comment: asset.owner_comment || null,
-    }));
+    const dbAssets = assets.map((asset) => {
+        const shares = normalizeOptionalNumber(asset.shares);
+        const avgCost = normalizeOptionalNumber(asset.avg_cost ?? asset.avgCost);
+        const category = asset.category?.trim() || null;
+
+        return {
+            portfolio_id,
+            company_id: company_id ?? null,
+            stock_name: asset.stock_name || asset.name || null,
+            ticker: asset.ticker || null,
+            isin: asset.isin || null,
+            currency: asset.currency || null,
+            asset_class: normalizeAssetClass(asset.asset_class),
+            category,
+            sector: asset.sector || null,
+            owner_comment: asset.owner_comment || null,
+            ...(shares !== null ? { shares } : {}),
+            ...(avgCost !== null ? { avg_cost: avgCost } : {}),
+        };
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)

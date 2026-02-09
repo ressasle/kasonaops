@@ -1,17 +1,104 @@
 # Project Constitution
 
+---
+
+## AI Agent Context (READ FIRST)
+
+> **For OpenCode, Codex, or any AI coding agent working on this project.**
+
+### Required Reading Before Coding
+
+1. **`docs/` folder** — All documentation lives here (NOT the archive subfolder)
+   - `docs/style_guide.md` — Visual design system, colors, typography
+   - `docs/sop_data_model.md` — Data model and table relationships
+   - `docs/sop_portfolio_assets.md` — Portfolio ingestion flow
+   - `docs/operations_manual.md` — Business processes
+   - `docs/KASONA_ADMIN_STYLE.md` — Admin panel styling rules
+
+2. **`database/schema.sql`** — Canonical database schema (source of truth)
+
+3. **`kasona-ops-app/OPENCODE_HANDOVER_PLAN.md`** — Current task plan with embedded UI/UX guidelines
+
+### Existing UI Components (Don't Recreate)
+
+Located in `kasona-ops-app/components/ui/`:
+
+| Component | File | Usage |
+|-----------|------|-------|
+| Alert | `alert.tsx` | Notifications, warnings |
+| Badge | `badge.tsx` | Status indicators (default, success, warning, danger) |
+| Button | `button.tsx` | All buttons (variant: default, outline, ghost) |
+| Card | `card.tsx` | Content containers |
+| Dialog | `dialog.tsx` | Modal dialogs |
+| DropdownMenu | `dropdown-menu.tsx` | Context menus, action menus |
+| Input | `input.tsx` | Text inputs |
+| Label | `label.tsx` | Form labels |
+| Progress | `progress.tsx` | Progress bars |
+| ScrollArea | `scroll-area.tsx` | Scrollable containers |
+| Select | `select.tsx` | Dropdowns |
+| Separator | `separator.tsx` | Dividers |
+| Sidebar | `sidebar.tsx` | Navigation sidebar |
+| Slider | `slider.tsx` | Range sliders |
+| Switch | `switch.tsx` | Toggle switches |
+| Table | `table.tsx` | Data tables |
+| Tabs | `tabs.tsx` | Tab navigation |
+| Textarea | `textarea.tsx` | Multi-line inputs |
+
+### Admin Components (Reusable Patterns)
+
+Located in `kasona-ops-app/components/admin/`:
+
+- `admin-sidebar.tsx` — Main navigation
+- `page-header.tsx` — Page titles
+- `quick-action-button.tsx` — Global "+" action menu
+- `customer-pipeline.tsx` — Kanban board
+- `owner-select.tsx` — Team member ownership dropdown
+- `crm/customer-manager.tsx` — Customer list/form
+- `crm/investor-profile-form.tsx` — Complex form example
+
+Data helpers in `kasona-ops-app/lib/data/`:
+- `team-options.ts` — Fetches active team members for dropdowns
+
+### Key Directories
+
+```
+kasona-ops-app/
+├── app/(admin)/          # All admin routes (dashboard, customers, sales, etc.)
+├── components/
+│   ├── ui/               # Base UI components (shadcn-style)
+│   └── admin/            # Admin-specific components
+├── lib/
+│   ├── data/             # Data fetching (customers.ts, types.ts)
+│   └── supabase/         # Supabase client
+└── OPENCODE_HANDOVER_PLAN.md  # Current implementation plan
+```
+
+### Design Rules (Quick Reference)
+
+- **Style**: Glassmorphism + Dark Mode
+- **Colors**: Orange/Pink gradient accent (`from-orange-400 to-pink-400`)
+- **Cards**: Use `glass-panel rounded-2xl` or `Card` component
+- **Icons**: Lucide React only — NO emojis as icons
+- **Cursors**: Add `cursor-pointer` to all clickable elements
+- **Spacing**: `space-y-10` between sections, `gap-6` for grids
+
+### DO NOT
+
+- ❌ Create new UI primitives if one already exists in `components/ui/`
+- ❌ Use emojis as icons (use Lucide icons)
+- ❌ Read from `docs/archive/` (obsolete files)
+- ❌ Guess at schema — check `database/schema.sql` or `lib/database.types.ts`
+
+---
+
 ## Data Schemas
+
 ### Supabase Input (Canonical)
+
+> ✅ `kasona_team_members` table is live in Supabase (TEXT PK `member_id`, e.g. `julian`). It stores HR data, app roles (`admin|manager|analyst|assistant|viewer`), and department. `owner_id` FK on `kasona_customer_basic_info` and `kasona_investor_profiles` points to `kasona_team_members.member_id`.
+
 ```json
 {
-  "team_members": [
-    {
-      "id": "uuid",
-      "name": "string",
-      "role": "string",
-      "email": "string|null"
-    }
-  ],
   "customer_basic_info": [
     {
       "company_id": "int",
@@ -21,11 +108,12 @@
       "email": "string|null",
       "website": "string|null",
       "phone": "string|null",
-      "industry": "Investing|Industrial Services|Consulting|E-Commerce|null",
+      "contact_person_position": "string|null",
+      "industry": "string|null",
       "action_status": "Renewed|To Expand|Backlog|New|To Check|Reminder Set|To Reach Out|Mail Sent|null",
       "reminder_date": "timestamp|null",
       "source": "Inbound|Outbound|null",
-      "type": "Customer|Warm Lead|null",
+      "type": "customer|partner|supplier|other|null",
       "n_portfolios": "int",
       "status": "Churned|Closed Lost|Expanded|Closed Won|Paid User|Free User|Offer Sent|Offer Generated|Meeting Booked|Lead Manget Sent|Lead Enriched|Lead Captured|Lead Identified|null",
       "product_type": "string|null",
@@ -36,7 +124,7 @@
       "contract_size": "number|null",
       "start_date": "date|null",
       "end_date": "date|null",
-      "charge_type": "Reatiner|Per Hour|Package|Fixed Fee|null",
+      "charge_type": "Retainer|Per Hour|Package|Fixed Fee|null",
       "billing_type": "Quarterly|Monthly|Project-based|Per Output|null",
       "billing_address": "string|null",
       "billing_email": "string|null",
@@ -50,7 +138,41 @@
       "previous_stage": "string|null",
       "changed_by": "string|null",
       "change_reason": "string|null",
-      "notes": "string|null"
+      "notes": "string|null",
+      "payment_terms": "int|null  // days, e.g. 14, 30, 60",
+      "owner_id": "string|null  // FK → kasona_team_members.member_id",
+      "creator_id": "string|null  // FK → kasona_team_members.member_id"
+    }
+  ],
+  "customer_contacts": [
+    {
+      "id": "uuid",
+      "company_id": "int",
+      "first_name": "string|null",
+      "last_name": "string|null",
+      "position": "string|null",
+      "email": "string|null",
+      "phone": "string|null",
+      "is_primary": "boolean",
+      "notes": "string|null",
+      "created_at": "timestamp",
+      "updated_at": "timestamp",
+      "owner_id": "string|null  // FK → kasona_team_members.member_id",
+      "creator_id": "string|null  // FK → kasona_team_members.member_id"
+    }
+  ],
+  "customer_documents": [
+    {
+      "id": "uuid",
+      "company_id": "int",
+      "doc_type": "file|note",
+      "title": "string",
+      "content": "string|null",
+      "file_url": "string|null",
+      "file_type": "string|null",
+      "created_by": "string|null",
+      "created_at": "timestamp",
+      "updated_at": "timestamp"
     }
   ],
   "investor_profiles": [
@@ -58,10 +180,8 @@
       "id": "uuid",
       "company_id": "int",
       "customer_name": "string|null",
-      "portfolio_id": "string",
+      "portfolio_id": "string  // unique",
       "portfolio_name": "string|null",
-      "creator_id": "uuid|null",
-      "owner_id": "uuid|null",
       "product_status": "to create|created|to review|to send|sent out|null",
       "subscribed_quartals": "boolean",
       "subscribed_stock_chatbot": "boolean",
@@ -84,8 +204,11 @@
       "buy_box_trigger_3": "string|null",
       "investment_philosophy": "string|null",
       "noise_filter": "string|null",
+      "podcast_frequency": "int|null",
       "created_at": "timestamp",
-      "updated_at": "timestamp"
+      "updated_at": "timestamp",
+      "creator_id": "string|null  // FK → kasona_team_members.member_id",
+      "owner_id": "string|null  // FK → kasona_team_members.member_id"
     }
   ],
   "portfolio_assets": [
@@ -115,13 +238,52 @@
       "logo_url": "string|null",
       "fiscal_year_end": "string|null",
       "other_listings": "json|null",
-      "watchtower": "boolean|null"
+      "watchtower": "boolean|null",
+      "enrichment_reviewed": "boolean|null",
+      "enrichment_reviewed_at": "timestamp|null",
+      "enrichment_reviewed_by": "string|null",
+      "shares": "number|null  // NUMERIC(18,6) - optional user tracking",
+      "avg_cost": "number|null  // NUMERIC(18,6) - optional user tracking"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "uuid",
+      "company_id": "int|null  // FK → kasona_customer_basic_info.company_id",
+      "owner_id": "string|null  // FK → kasona_team_members.member_id",
+      "creator_id": "string|null  // FK → kasona_team_members.member_id",
+      "title": "string",
+      "description": "string|null",
+      "status": "todo|in_progress|blocked|done",
+      "priority": "low|medium|high|urgent",
+      "category": "sales|finance|fulfillment|product|team|general",
+      "due_date": "date|null",
+      "reminder_date": "timestamp|null",
+      "completed_at": "timestamp|null",
+      "source": "manual|automation|system",
+      "related_entity_type": "string|null",
+      "related_entity_id": "string|null",
+      "notes": "string|null",
+      "created_at": "timestamp",
+      "updated_at": "timestamp"
+    }
+  ],
+  "customer_links": [
+    {
+      "id": "uuid",
+      "company_id": "int  // FK → kasona_customer_basic_info.company_id",
+      "title": "string",
+      "url": "string",
+      "link_type": "folder|document|website|other|null",
+      "created_at": "timestamp",
+      "created_by": "string|null  // FK → kasona_team_members.member_id"
     }
   ]
 }
 ```
 
 ### Firecrawl Extract Payload (Portfolio Ingestion)
+
 ```json
 {
   "tickers": ["string"],
@@ -131,6 +293,7 @@
 ```
 
 ### Local Output Payload (Admin Dashboard View Model)
+
 ```json
 {
   "generated_at": "timestamp",
@@ -203,8 +366,9 @@
 ```
 
 ## Behavioral Rules
-- Follow B.L.A.S.T. and A.N.T. protocols.
+
 - Precise and conservative; no guessing at business logic.
 
 ## Architectural Invariants
+
 - Update SOPs before code changes.

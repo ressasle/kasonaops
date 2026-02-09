@@ -1,48 +1,36 @@
-"use client";
+import { CustomerOnboarding } from "@/components/admin/onboarding/customer-onboarding";
+import { getCustomers } from "@/lib/data/customers";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
+interface PageProps {
+  searchParams: Promise<{
+    company_id?: string;
+    company_name?: string;
+  }>;
+}
 
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { OnboardingWelcome } from "@/components/admin/onboarding/onboarding-welcome";
-import { OnboardingPortfolio } from "@/components/admin/onboarding/onboarding-portfolio";
-import { OnboardingProfile } from "@/components/admin/onboarding/onboarding-profile";
-import { OnboardingLiveDemo } from "@/components/admin/onboarding/onboarding-live-demo";
+export default async function OnboardingPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const supabase = getSupabaseServerClient();
+  const customers = await getCustomers(1000);
 
-const STEPS = ["Willkommen", "Portfolio", "Profil", "Ergebnis"];
-
-export default function OnboardingPage() {
-  const [step, setStep] = useState(0);
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const companyId = params.company_id ? Number(params.company_id) : undefined;
+  const companyName = params.company_name ?? undefined;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8">
-      <header className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-primary" /> Schritt {step + 1} von {STEPS.length}
-          </div>
-          <div className="text-sm font-medium">{STEPS[step]}</div>
-        </div>
-        <Progress value={progress} />
-      </header>
-
-      {step === 0 && <OnboardingWelcome onNext={() => setStep(1)} />}
-      {step === 1 && <OnboardingPortfolio />}
-      {step === 2 && <OnboardingProfile />}
-      {step === 3 && <OnboardingLiveDemo />}
-
-      {step > 0 && step < 3 && (
-        <footer className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => setStep((prev) => prev - 1)}>
-            <ArrowLeft className="h-4 w-4" /> Zuruck
-          </Button>
-          <Button onClick={() => setStep((prev) => prev + 1)}>
-            Weiter <ArrowRight className="h-4 w-4" />
-          </Button>
-        </footer>
-      )}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Customer Onboarding</h1>
+        <p className="text-sm text-muted-foreground">
+          Set up investor profiles and portfolio assets for a customer.
+        </p>
+      </div>
+      <CustomerOnboarding
+        customers={customers}
+        supabaseReady={!!supabase}
+        initialCompanyId={companyId}
+        initialCompanyName={companyName}
+      />
     </div>
   );
 }

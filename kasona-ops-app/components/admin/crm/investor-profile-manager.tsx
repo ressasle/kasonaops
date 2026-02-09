@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { InvestorProfileImportDialog } from "./investor-profile-import-dialog";
 
 const PRODUCT_STATUS_OPTIONS = ["to create", "created", "to review", "to send", "sent out"];
 const OUTPUT_FORMAT_OPTIONS = ["Podcast", "Newsletter", "Other"];
@@ -32,6 +33,7 @@ type ProfileFormState = {
   last_document_link: string;
   investment_philosophy: string;
   noise_filter: string;
+  owner_id: string;
 };
 
 const EMPTY_STATE: ProfileFormState = {
@@ -49,7 +51,8 @@ const EMPTY_STATE: ProfileFormState = {
   telegram_id: "",
   last_document_link: "",
   investment_philosophy: "",
-  noise_filter: ""
+  noise_filter: "",
+  owner_id: ""
 };
 
 const numberOrNull = (value: string) => {
@@ -73,7 +76,8 @@ const mapProfileToForm = (profile: InvestorProfile): ProfileFormState => ({
   telegram_id: profile.telegram_id ?? "",
   last_document_link: profile.last_document_link ?? "",
   investment_philosophy: profile.investment_philosophy ?? "",
-  noise_filter: profile.noise_filter ?? ""
+  noise_filter: profile.noise_filter ?? "",
+  owner_id: profile.owner_id ?? ""
 });
 
 type InvestorProfileManagerProps = {
@@ -123,7 +127,8 @@ export function InvestorProfileManager({ profiles, supabaseReady }: InvestorProf
       telegram_id: form.telegram_id.trim() || null,
       last_document_link: form.last_document_link.trim() || null,
       investment_philosophy: form.investment_philosophy.trim() || null,
-      noise_filter: form.noise_filter.trim() || null
+      noise_filter: form.noise_filter.trim() || null,
+      owner_id: form.owner_id.trim() || null
     };
 
     const url = editingId ? `/api/investor-profiles/${editingId}` : "/api/investor-profiles";
@@ -190,11 +195,14 @@ export function InvestorProfileManager({ profiles, supabaseReady }: InvestorProf
   return (
     <section className="grid gap-6 lg:grid-cols-2">
       <Card className="p-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>{editingId ? `Edit Portfolio ${editingId}` : "New Investor Profile"}</CardTitle>
-          <Button variant="outline" size="sm" onClick={resetForm} disabled={isSaving}>
-            Reset
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={resetForm} disabled={isSaving}>
+              Reset
+            </Button>
+            <InvestorProfileImportDialog onSuccess={router.refresh} />
+          </div>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>

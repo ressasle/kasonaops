@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { CustomerProfileHub } from "@/components/admin/crm/customer-profile-hub";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { CustomerBasicInfo, InvestorProfile, PortfolioAsset } from "@/lib/data/types";
+import type { CustomerBasicInfo, CustomerContact, CustomerLink, InvestorProfile, PortfolioAsset } from "@/lib/data/types";
 
 interface PageProps {
   params: Promise<{
@@ -43,12 +43,28 @@ export default async function CustomerProfilePage({ params }: PageProps) {
     .eq("company_id", companyIdValue as any)
     .order("id", { ascending: false });
 
+  // 4. Fetch Contact Persons
+  const { data: contacts } = await supabase
+    .from("kasona_customer_contacts")
+    .select("*")
+    .eq("company_id", companyIdValue as any)
+    .order("created_at", { ascending: false });
+
+  // 5. Fetch Customer Links
+  const { data: links } = await supabase
+    .from("kasona_customer_links")
+    .select("*")
+    .eq("company_id", companyIdValue as any)
+    .order("created_at", { ascending: false });
+
   return (
     <div className="space-y-8">
       <CustomerProfileHub
         customer={customer as unknown as CustomerBasicInfo}
         profiles={(profiles || []) as unknown as InvestorProfile[]}
         assets={(assets || []) as unknown as PortfolioAsset[]}
+        contacts={(contacts || []) as unknown as CustomerContact[]}
+        links={(links || []) as unknown as CustomerLink[]}
       />
     </div>
   );

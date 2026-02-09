@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 import type { Customer } from "@/lib/data/customers";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +45,7 @@ const INDUSTRY_OPTIONS = ["Investing", "Industrial Services", "Consulting", "E-C
 
 const SOURCE_OPTIONS = ["Inbound", "Outbound"];
 
-const TYPE_OPTIONS = ["Customer", "Warm Lead"];
+const TYPE_OPTIONS = ["customer", "partner", "supplier", "other"];
 
 const PRODUCT_OPTIONS = ["Wealth Intelligence", "Quartals-kompass", "Transformations Paket"];
 
@@ -84,6 +84,8 @@ type CustomerFormState = {
   changed_by: string;
   change_reason: string;
   notes: string;
+  payment_terms: string;
+  owner_id: string;
 };
 
 const EMPTY_STATE: CustomerFormState = {
@@ -116,7 +118,9 @@ const EMPTY_STATE: CustomerFormState = {
   previous_stage: "",
   changed_by: "",
   change_reason: "",
-  notes: ""
+  notes: "",
+  payment_terms: "",
+  owner_id: ""
 };
 
 const numberOrNull = (value: string) => {
@@ -167,13 +171,15 @@ const mapCustomerToForm = (customer: Customer): CustomerFormState => ({
   previous_stage: customer.previous_stage ?? "",
   changed_by: customer.changed_by ?? "",
   change_reason: customer.change_reason ?? "",
-  notes: customer.notes ?? ""
+  notes: customer.notes ?? "",
+  payment_terms: customer.payment_terms?.toString() ?? "",
+  owner_id: customer.owner_id ?? ""
 });
 
 type CustomerManagerProps = {
   customers: Customer[];
   supabaseReady: boolean;
-  mode?: "manager" | "onboarding";
+  mode?: "list" | "form" | "onboarding" | "new-lead";
   onSuccess?: (id: number, name: string) => void;
   initialEditId?: number;
   initialFilters?: {
@@ -181,13 +187,15 @@ type CustomerManagerProps = {
     status?: string;
     action?: string;
     industry?: string;
+    type?: string;
+    product?: string;
   };
 };
 
 export function CustomerManager({
   customers,
   supabaseReady,
-  mode = "manager",
+  mode = "list",
   onSuccess,
   initialEditId,
   initialFilters
@@ -206,6 +214,10 @@ export function CustomerManager({
   const [statusFilter, setStatusFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [industryFilter, setIndustryFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [productFilter, setProductFilter] = useState("");
+  const [enrichingCompanyId, setEnrichingCompanyId] = useState<number | null>(null);
+  const [enrichmentMessage, setEnrichmentMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialFilters) return;
@@ -213,6 +225,8 @@ export function CustomerManager({
     if (initialFilters.status !== undefined) setStatusFilter(initialFilters.status);
     if (initialFilters.action !== undefined) setActionFilter(initialFilters.action);
     if (initialFilters.industry !== undefined) setIndustryFilter(initialFilters.industry);
+    if (initialFilters.type !== undefined) setTypeFilter(initialFilters.type);
+    if (initialFilters.product !== undefined) setProductFilter(initialFilters.product);
   }, [initialFilters]);
 
   useEffect(() => {
@@ -345,14 +359,22 @@ export function CustomerManager({
       const matchesStatus = statusFilter ? customer.status === statusFilter : true;
       const matchesAction = actionFilter ? customer.action_status === actionFilter : true;
       const matchesIndustry = industryFilter ? customer.industry === industryFilter : true;
-      return matchesTerm && matchesStatus && matchesAction && matchesIndustry;
+      const matchesType = typeFilter ? customer.type === typeFilter : true;
+      const matchesProduct = productFilter ? customer.product_type === productFilter : true;
+      return matchesTerm && matchesStatus && matchesAction && matchesIndustry && matchesType && matchesProduct;
     });
-  }, [sortedCustomers, searchTerm, statusFilter, actionFilter, industryFilter]);
+  }, [sortedCustomers, searchTerm, statusFilter, actionFilter, industryFilter, typeFilter, productFilter]);
 
   const displayCustomers = useMemo(() => {
-    const isFiltering = searchTerm.trim().length > 0 || statusFilter || actionFilter || industryFilter;
+    const isFiltering =
+      searchTerm.trim().length > 0 ||
+      statusFilter ||
+      actionFilter ||
+      industryFilter ||
+      typeFilter ||
+      productFilter;
     return isFiltering ? filteredCustomers : sortedCustomers.slice(0, 12);
-  }, [filteredCustomers, sortedCustomers, searchTerm, statusFilter, actionFilter, industryFilter]);
+  }, [filteredCustomers, sortedCustomers, searchTerm, statusFilter, actionFilter, industryFilter, typeFilter, productFilter]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -370,8 +392,8 @@ export function CustomerManager({
       return;
     }
 
-    if (!form.company_name.trim() || !form.contact_person_name.trim()) {
-      setError("Company name and contact person are required.");
+    if (!form.company_name.trim()) {
+      setError("Company name is required.");
       setIsSaving(false);
       return;
     }
@@ -412,7 +434,9 @@ export function CustomerManager({
       previous_stage: form.previous_stage.trim() || null,
       changed_by: form.changed_by.trim() || null,
       change_reason: form.change_reason.trim() || null,
-      notes: form.notes.trim() || null
+      notes: form.notes.trim() || null,
+      payment_terms: numberOrNull(form.payment_terms),
+      owner_id: form.owner_id.trim() || null
     };
 
     const url = editingId ? `/api/customers/${editingId}` : "/api/customers";
@@ -432,18 +456,15 @@ export function CustomerManager({
 
       const result = await response.json();
 
-      if (mode === "onboarding" && onSuccess && result.data) {
-        // Assuming result.data contains the [createdCustomer] or object
-        // We might need to adjust based on actual API return
-        // If API returns { data: [ { company_id: 123, ... } ] } or { data: { ... } }
-        const created = Array.isArray(result.data) ? result.data[0] : result.data;
+      const created = Array.isArray(result.data) ? result.data[0] : result.data;
+
+      if ((mode === "onboarding") && onSuccess && created) {
         onSuccess(created.company_id, created.company_name);
-        return; // Skip reset/refresh for onboarding to keep flow smooth? Or reset?
+        return;
       }
 
-      const created = Array.isArray(result.data) ? result.data[0] : result.data;
-      if (mode === "onboarding" && onSuccess && created) {
-        onSuccess(created.company_id, created.company_name);
+      if ((mode === "new-lead" || mode === "form") && created) {
+        router.push(`/customers/${created.company_id}`);
         return;
       }
 
@@ -463,448 +484,532 @@ export function CustomerManager({
     setDuplicateConfirmed(false);
   };
 
-  const handleDelete = async (companyId: number) => {
+  const handleEnrich = async (customer: Customer) => {
     if (!supabaseReady) {
       setError("Supabase is not configured. Add environment variables first.");
       return;
     }
+    if (customer.type === "partner" || customer.type === "supplier") {
+      setEnrichmentMessage(
+        `Enrichment skipped for ${customer.company_name}: only customer/lead records are eligible.`
+      );
+      return;
+    }
+    if (!customer.website?.trim()) {
+      setEnrichmentMessage(`Cannot enrich ${customer.company_name}: website is missing.`);
+      return;
+    }
 
-    const confirmed = window.confirm("Delete this company record?");
-    if (!confirmed) return;
-
-    setIsSaving(true);
-    setError(null);
+    setEnrichingCompanyId(customer.company_id);
+    setEnrichmentMessage(null);
 
     try {
-      const response = await fetch(`/api/customers/${companyId}`, { method: "DELETE" });
+      const response = await fetch(`/api/customers/${customer.company_id}/enrich`, {
+        method: "POST"
+      });
+
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Unable to delete customer");
+        throw new Error(data.error ?? "Website enrichment failed");
       }
 
-      if (editingId === companyId) {
-        resetForm();
-      }
-
+      const data = (await response.json()) as {
+        enrichment?: { updated_fields?: string[] };
+      };
+      const updatedFields = data.enrichment?.updated_fields ?? [];
+      setEnrichmentMessage(
+        updatedFields.length > 0
+          ? `Enriched ${customer.company_name}: ${updatedFields.join(", ")}`
+          : `Enrichment completed for ${customer.company_name} (notes updated).`
+      );
       router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete customer");
+    } catch (enrichError) {
+      setEnrichmentMessage(
+        enrichError instanceof Error ? enrichError.message : "Website enrichment failed"
+      );
     } finally {
-      setIsSaving(false);
+      setEnrichingCompanyId(null);
     }
   };
 
-  return (
-    <section className="grid gap-6 lg:grid-cols-3">
-      <Card id="new-company" className="p-6 lg:col-span-1">
-        <CardHeader>
-          <CardTitle>{editingId ? `Edit Company ${editingId}` : "New Company Profile"}</CardTitle>
-          <Button variant="outline" size="sm" onClick={resetForm} disabled={isSaving}>
-            Reset
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label>Company Name</Label>
-              <Input value={form.company_name} onChange={handleChange("company_name")} required />
-              {searching && <div className="text-xs text-muted-foreground">Checking duplicates...</div>}
-              {potentialMatches.length > 0 && !editingId && (
-                <div className="space-y-2 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-3 text-xs">
-                  <div className="text-yellow-200">Possible existing records found:</div>
-                  {potentialMatches.map((match) => (
-                    <div key={match.company_id} className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">{match.company_name}</div>
-                        <div className="text-muted-foreground">ID {match.company_id}</div>
-                      </div>
-                      <Button variant="outline" size="sm" type="button" onClick={() => handleEdit(match)}>
-                        Load
-                      </Button>
-                    </div>
-                  ))}
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={duplicateConfirmed}
-                      onChange={(event) => setDuplicateConfirmed(event.target.checked)}
-                    />
-                    Create anyway (I reviewed duplicates)
-                  </label>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Contact Person</Label>
-              <Input value={form.contact_person_name} onChange={handleChange("contact_person_name")} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Contact Position</Label>
-              <Input value={form.contact_person_position} onChange={handleChange("contact_person_position")} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" value={form.email} onChange={handleChange("email")} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={form.phone} onChange={handleChange("phone")} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Website</Label>
-              <Input value={form.website} onChange={handleChange("website")} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Industry</Label>
-                <select
-                  value={form.industry}
-                  onChange={handleChange("industry")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select industry</option>
-                  {INDUSTRY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Source</Label>
-                <select
-                  value={form.source}
-                  onChange={handleChange("source")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select source</option>
-                  {SOURCE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <select
-                  value={form.status}
-                  onChange={handleChange("status")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select status</option>
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Action Status</Label>
-                <select
-                  value={form.action_status}
-                  onChange={handleChange("action_status")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select action</option>
-                  {ACTION_STATUS_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <select
-                  value={form.type}
-                  onChange={handleChange("type")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select type</option>
-                  {TYPE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Product Type</Label>
-                <select
-                  value={form.product_type}
-                  onChange={handleChange("product_type")}
-                  className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Select product</option>
-                  {PRODUCT_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <Switch checked={showDocumentation} onCheckedChange={setShowDocumentation} />
-                <Label>Show Documentation</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={showFinance} onCheckedChange={setShowFinance} />
-                <Label>Show Finance Info</Label>
-              </div>
-            </div>
-            {showFinance && (
-              <div className="rounded-2xl border border-border/60 p-4">
-                <div className="text-sm font-semibold">Finance Info</div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Contract Size</Label>
-                    <Input type="number" value={form.contract_size} onChange={handleChange("contract_size")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Charge Type</Label>
-                    <select
-                      value={form.charge_type}
-                      onChange={handleChange("charge_type")}
-                      className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                    >
-                      <option value="">Select charge type</option>
-                      {CHARGE_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Billing Type</Label>
-                    <select
-                      value={form.billing_type}
-                      onChange={handleChange("billing_type")}
-                      className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
-                    >
-                      <option value="">Select billing type</option>
-                      {BILLING_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Billing Email</Label>
-                    <Input type="email" value={form.billing_email} onChange={handleChange("billing_email")} />
-                  </div>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <Label>Billing Address</Label>
-                  <Textarea value={form.billing_address} onChange={handleChange("billing_address")} rows={2} />
-                </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Start Date</Label>
-                    <Input type="date" value={form.start_date} onChange={handleChange("start_date")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>End Date</Label>
-                    <Input type="date" value={form.end_date} onChange={handleChange("end_date")} />
-                  </div>
-                </div>
-              </div>
-            )}
-            {showDocumentation && (
-              <div className="rounded-2xl border border-border/60 p-4">
-                <div className="text-sm font-semibold">Documentation</div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={form.is_current} onChange={handleCheckbox("is_current")} />
-                    <Label>Current Customer</Label>
-                  </div>
-                  <div></div>
-                  <div className="space-y-2">
-                    <Label>Entered At</Label>
-                    <Input type="datetime-local" value={form.entered_at} onChange={handleChange("entered_at")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Exited At</Label>
-                    <Input type="datetime-local" value={form.exited_at} onChange={handleChange("exited_at")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Expected Deal Value</Label>
-                    <Input type="number" value={form.expected_deal_value} onChange={handleChange("expected_deal_value")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Probability</Label>
-                    <Input type="number" value={form.probability} onChange={handleChange("probability")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Days in Stage</Label>
-                    <Input type="number" value={form.days_in_stage} onChange={handleChange("days_in_stage")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fit Tier</Label>
-                    <Input value={form.fit_tier} onChange={handleChange("fit_tier")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Previous Stage</Label>
-                    <Input value={form.previous_stage} onChange={handleChange("previous_stage")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Changed By</Label>
-                    <Input value={form.changed_by} onChange={handleChange("changed_by")} />
-                  </div>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <Label>Change Reason</Label>
-                  <Textarea value={form.change_reason} onChange={handleChange("change_reason")} rows={2} />
-                </div>
-                <div className="mt-3 space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea value={form.notes} onChange={handleChange("notes")} rows={3} />
-                </div>
-              </div>
-            )}
-            {error && <div className="text-sm text-red-300">{error}</div>}
-            <Button type="submit" disabled={isSaving || searching} className="w-full">
-              {searching ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking duplicates...
-                </>
-              ) : editingId ? (
-                "Update Company"
-              ) : (
-                "Create Company"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+  const isFormMode = mode === "form" || mode === "new-lead" || mode === "onboarding";
+  const isNewLead = mode === "new-lead";
+  const renderForm = isFormMode;
+  const renderList = mode === "list";
 
-      {mode === "manager" && (
-        <>
-          <Card className="p-6 lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Company Records</CardTitle>
-              <Badge variant={supabaseReady ? "success" : "warning"}>
-                {supabaseReady ? "Live" : "Offline"}
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 grid gap-3 md:grid-cols-4">
-                <Input
-                  placeholder="Search name, email, ID"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                />
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">All statuses</option>
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={actionFilter}
-                  onChange={(event) => setActionFilter(event.target.value)}
-                  className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">All actions</option>
-                  {ACTION_STATUS_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={industryFilter}
-                  onChange={(event) => setIndustryFilter(event.target.value)}
-                  className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">All industries</option>
-                  {INDUSTRY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+  return (
+    <section className={isFormMode ? "mx-auto w-full max-w-3xl" : "space-y-6"}>
+      {renderForm && (
+        <Card id="new-company" className={isNewLead ? "p-6" : "p-6"}>
+          <CardHeader>
+            <CardTitle>{isNewLead ? "New Lead" : editingId ? `Edit Company ${editingId}` : "New Company Profile"}</CardTitle>
+            {!isNewLead && (
+              <Button variant="outline" size="sm" onClick={resetForm} disabled={isSaving}>
+                Reset
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label>Company Name</Label>
+                <Input value={form.company_name} onChange={handleChange("company_name")} required className={isNewLead ? "ring-2 ring-primary/40" : ""} />
+                {searching && <div className="text-xs text-muted-foreground">Checking duplicates...</div>}
+                {potentialMatches.length > 0 && !editingId && (
+                  <div className="space-y-2 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-3 text-xs">
+                    <div className="text-yellow-200">Possible existing records found:</div>
+                    {potentialMatches.map((match) => (
+                      <div key={match.company_id} className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">{match.company_name}</div>
+                          <div className="text-muted-foreground">{match.email ?? "No email"} · ID {match.company_id}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" type="button" asChild>
+                            <Link href={`/customers/${match.company_id}`}>Open Profile</Link>
+                          </Button>
+                          {!isNewLead && (
+                            <Button variant="outline" size="sm" type="button" onClick={() => handleEdit(match)}>
+                              Load
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={duplicateConfirmed}
+                        onChange={(event) => setDuplicateConfirmed(event.target.checked)}
+                      />
+                      Create anyway (I reviewed duplicates)
+                    </label>
+                  </div>
+                )}
               </div>
+              <div className="space-y-2">
+                <Label>Contact Person</Label>
+                <Input value={form.contact_person_name} onChange={handleChange("contact_person_name")} className={isNewLead ? "ring-2 ring-primary/40" : ""} />
+              </div>
+              <div className="space-y-2">
+                <Label>Contact Position</Label>
+                <Input value={form.contact_person_position} onChange={handleChange("contact_person_position")} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input type="email" value={form.email} onChange={handleChange("email")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={form.phone} onChange={handleChange("phone")} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Website</Label>
+                <Input value={form.website} onChange={handleChange("website")} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Industry</Label>
+                  <select
+                    value={form.industry}
+                    onChange={handleChange("industry")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select industry</option>
+                    {INDUSTRY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Source</Label>
+                  <select
+                    value={form.source}
+                    onChange={handleChange("source")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select source</option>
+                    {SOURCE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <select
+                    value={form.status}
+                    onChange={handleChange("status")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select status</option>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Action Status</Label>
+                  <select
+                    value={form.action_status}
+                    onChange={handleChange("action_status")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select action</option>
+                    {ACTION_STATUS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  <select
+                    value={form.type}
+                    onChange={handleChange("type")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select type</option>
+                    {TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Product Type</Label>
+                  <select
+                    value={form.product_type}
+                    onChange={handleChange("product_type")}
+                    className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Select product</option>
+                    {PRODUCT_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch checked={showDocumentation} onCheckedChange={setShowDocumentation} />
+                  <Label>Show Documentation</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={showFinance} onCheckedChange={setShowFinance} />
+                  <Label>Show Finance Info</Label>
+                </div>
+              </div>
+              {showFinance && (
+                <div className="rounded-2xl border border-border/60 p-4">
+                  <div className="text-sm font-semibold">Finance Info</div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Contract Size</Label>
+                      <Input type="number" value={form.contract_size} onChange={handleChange("contract_size")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Charge Type</Label>
+                      <select
+                        value={form.charge_type}
+                        onChange={handleChange("charge_type")}
+                        className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                      >
+                        <option value="">Select charge type</option>
+                        {CHARGE_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Billing Type</Label>
+                      <select
+                        value={form.billing_type}
+                        onChange={handleChange("billing_type")}
+                        className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm"
+                      >
+                        <option value="">Select billing type</option>
+                        {BILLING_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Billing Email</Label>
+                      <Input type="email" value={form.billing_email} onChange={handleChange("billing_email")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Payment Terms (days)</Label>
+                      <Input type="number" value={form.payment_terms} onChange={handleChange("payment_terms")} placeholder="e.g. 30" />
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Label>Billing Address</Label>
+                    <Textarea value={form.billing_address} onChange={handleChange("billing_address")} rows={2} />
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Input type="date" value={form.start_date} onChange={handleChange("start_date")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <Input type="date" value={form.end_date} onChange={handleChange("end_date")} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {showDocumentation && (
+                <div className="rounded-2xl border border-border/60 p-4">
+                  <div className="text-sm font-semibold">Documentation</div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" checked={form.is_current} onChange={handleCheckbox("is_current")} />
+                      <Label>Current Customer</Label>
+                    </div>
+                    <div></div>
+                    <div className="space-y-2">
+                      <Label>Entered At</Label>
+                      <Input type="datetime-local" value={form.entered_at} onChange={handleChange("entered_at")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Exited At</Label>
+                      <Input type="datetime-local" value={form.exited_at} onChange={handleChange("exited_at")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Expected Deal Value</Label>
+                      <Input type="number" value={form.expected_deal_value} onChange={handleChange("expected_deal_value")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Probability</Label>
+                      <Input type="number" value={form.probability} onChange={handleChange("probability")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Days in Stage</Label>
+                      <Input type="number" value={form.days_in_stage} onChange={handleChange("days_in_stage")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fit Tier</Label>
+                      <Input value={form.fit_tier} onChange={handleChange("fit_tier")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Previous Stage</Label>
+                      <Input value={form.previous_stage} onChange={handleChange("previous_stage")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Changed By</Label>
+                      <Input value={form.changed_by} onChange={handleChange("changed_by")} />
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Label>Change Reason</Label>
+                    <Textarea value={form.change_reason} onChange={handleChange("change_reason")} rows={2} />
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Label>Notes</Label>
+                    <Textarea value={form.notes} onChange={handleChange("notes")} rows={3} />
+                  </div>
+                </div>
+              )}
+              {error && <div className="text-sm text-red-300">{error}</div>}
+              <Button type="submit" disabled={isSaving || searching} className="w-full">
+                {searching ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking duplicates...
+                  </>
+                ) : editingId ? (
+                  "Update Company"
+                ) : (
+                  "Create Company"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {renderList && (
+        <Card className="p-6 lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Company Records</CardTitle>
+            <Badge variant={supabaseReady ? "success" : "warning"}>
+              {supabaseReady ? "Live" : "Offline"}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <Input
+                placeholder="Search name, email, ID"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">All statuses</option>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={actionFilter}
+                onChange={(event) => setActionFilter(event.target.value)}
+                className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">All actions</option>
+                {ACTION_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={industryFilter}
+                onChange={(event) => setIndustryFilter(event.target.value)}
+                className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">All industries</option>
+                {INDUSTRY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+                className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">All types</option>
+                {TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={productFilter}
+                onChange={(event) => setProductFilter(event.target.value)}
+                className="h-10 rounded-full border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">All products</option>
+                {PRODUCT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
               <div className="mb-3 text-xs text-muted-foreground">
                 Showing {displayCustomers.length} of {customers.length} (most recent by default)
               </div>
+              {enrichmentMessage && (
+                <div className="mb-3 text-xs text-muted-foreground">{enrichmentMessage}</div>
+              )}
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Updated</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayCustomers.map((customer) => (
-                    <TableRow key={customer.company_id}>
-                      <TableCell>
-                        <Link href={`/customers/${customer.company_id}`} className="text-sm font-medium hover:underline">
-                          {customer.company_name}
-                        </Link>
-                        <div className="text-xs text-muted-foreground">{customer.email ?? "No email"}</div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {isDuplicate(customer) && (
-                            <Badge variant="warning">Duplicate</Badge>
-                          )}
-                          {missingReviewFields(customer).map((field) => (
-                            <Badge key={field} variant="default">
-                              {field}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={customer.status?.includes("Paid") ? "success" : "default"}>
-                          {customer.status ?? "Unknown"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{customer.action_status ?? "-"}</TableCell>
-                      <TableCell>{customer.expected_deal_value ?? "-"}</TableCell>
-                      <TableCell>{customer.updated_at ? customer.updated_at.slice(0, 10) : "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayCustomers.map((customer) => (
+                  <TableRow key={customer.company_id}>
+                    <TableCell>
+                      <Link href={`/customers/${customer.company_id}`} className="text-sm font-medium hover:underline">
+                        {customer.company_name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">{customer.email ?? "No email"}</div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {isDuplicate(customer) && (
+                          <Badge variant="warning">Duplicate</Badge>
+                        )}
+                        {missingReviewFields(customer).map((field) => (
+                          <Badge key={field} variant="default">
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={customer.status?.includes("Paid") ? "success" : "default"}>
+                        {customer.status ?? "Unknown"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{customer.action_status ?? "-"}</TableCell>
+                    <TableCell>{customer.expected_deal_value ?? "-"}</TableCell>
+                    <TableCell>{customer.updated_at ? customer.updated_at.slice(0, 10) : "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                          {(() => {
+                            const isIneligibleType = customer.type === "partner" || customer.type === "supplier";
+                            const disableReason = isIneligibleType
+                              ? `Disabled for ${customer.type}`
+                              : !customer.website
+                                ? "Website required"
+                                : "Enrich with Firecrawl";
+                            return (
+                              <>
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/customers/${customer.company_id}`}>Open</Link>
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleEdit(customer)}>
-                            Edit
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer"
+                            onClick={() => handleEnrich(customer)}
+                            disabled={isIneligibleType || !customer.website || enrichingCompanyId === customer.company_id}
+                            title={disableReason}
+                          >
+                            {enrichingCompanyId === customer.company_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Sparkles className="mr-1 h-4 w-4" />
+                                Enrich
+                              </>
+                            )}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.company_id)}>
-                            Delete
-                          </Button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-        </>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </section>
   );

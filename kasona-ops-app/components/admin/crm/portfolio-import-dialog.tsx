@@ -47,6 +47,7 @@ type ExtractedAsset = {
     isin: string | null;
     currency: string | null;
     asset_class: string;
+    category: string | null;
     sector: string | null;
     confidence: "high" | "medium" | "low";
     needs_review: boolean;
@@ -174,6 +175,7 @@ export function PortfolioImportDialog({
                         isin: null,
                         currency: null,
                         asset_class: "Other",
+                        category: null,
                         sector: null,
                         confidence: "high",
                         needs_review: false,
@@ -195,6 +197,8 @@ export function PortfolioImportDialog({
                             asset.currency = value.toUpperCase();
                         } else if (["asset_class", "type", "typ", "kategorie"].includes(header)) {
                             asset.asset_class = normalizeAssetClass(value);
+                        } else if (["category", "gruppe", "subcategory"].includes(header)) {
+                            asset.category = value;
                         } else if (["sector", "branche", "sektor"].includes(header)) {
                             asset.sector = value;
                         }
@@ -251,6 +255,7 @@ export function PortfolioImportDialog({
                     isin: item.isin || null,
                     currency: item.currency || null,
                     asset_class: normalizeAssetClass(item.asset_class),
+                    category: item.category || null,
                     sector: item.sector || null,
                     confidence: item.confidence || "medium",
                     needs_review: item.needs_review || false,
@@ -318,6 +323,7 @@ export function PortfolioImportDialog({
             isin: null,
             currency: "EUR",
             asset_class: "Other",
+            category: null,
             sector: null,
             confidence: "high",
             needs_review: true,
@@ -477,6 +483,7 @@ export function PortfolioImportDialog({
                                                     <TableHead>ISIN</TableHead>
                                                     <TableHead>Currency</TableHead>
                                                     <TableHead>Asset Class</TableHead>
+                                                    <TableHead>Category</TableHead>
                                                     <TableHead className="w-10"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -548,6 +555,14 @@ export function PortfolioImportDialog({
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                value={asset.category ?? ""}
+                                                                onChange={(e) => updateAsset(asset.id, "category", e.target.value)}
+                                                                placeholder="e.g. Growth"
+                                                                className="h-8 text-sm w-28"
+                                                            />
                                                         </TableCell>
                                                         <TableCell>
                                                             <Button
