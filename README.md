@@ -112,3 +112,5 @@ Application runs at `http://localhost:3000`
 | [Admin Style](docs/KASONA_ADMIN_STYLE.md) | Admin panel specifics |
 | [Operations Manual](docs/operations_manual.md) | Business processes |
 | [Feature QA Checklist](docs/qa_feature_improvements_2026-02-08.md) | Click-path verification for workstreams A-D |
+
+made by Kasona for all
