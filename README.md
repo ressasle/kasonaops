@@ -1,6 +1,7 @@
 # Kasona Ops
 
-CRM & Operations tool for customer management and personalized portfolio briefing fulfillment.
+CRM & Operations tool for customer management and personalized portfolio briefing fulfillment. The CRM system does 1. customer management and sales for Kasona Ops
+
 
 ---
 
