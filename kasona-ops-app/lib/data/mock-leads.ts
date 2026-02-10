@@ -84,6 +84,7 @@ const mapRow = (row: CsvRow, index: number): CustomerBasicInfo => {
     billing_type: (row.Billing?.trim() as CustomerBasicInfo["billing_type"]) ?? null,
     billing_address: null,
     billing_email: null,
+    tokens_processed: 0,
     is_current: true,
     entered_at: row.fan_since_date?.trim() || null,
     exited_at: null,
@@ -97,7 +98,8 @@ const mapRow = (row: CsvRow, index: number): CustomerBasicInfo => {
     notes: row.comment?.trim() || null,
     payment_terms: null,
     owner_id: null,
-    creator_id: null
+    creator_id: null,
+    invoice_sent: false
   };
 };
 

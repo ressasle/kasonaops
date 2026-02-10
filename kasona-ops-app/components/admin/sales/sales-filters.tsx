@@ -75,7 +75,7 @@ export function SalesFilters({
           <div className="flex items-center gap-2">
             <Button type="submit">Apply</Button>
             <Button asChild variant="outline">
-              <Link href={`/sales?view=${encodeURIComponent(view)}`}>Reset</Link>
+              <Link href={`/sales?view=${encodeURIComponent(view)}`}>Reset Filters</Link>
             </Button>
           </div>
         </form>

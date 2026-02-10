@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FulfillmentQueue } from "@/components/admin/operations/fulfillment-queue";
 import { PodcastControls } from "@/components/admin/operations/podcast-controls";
+import { QAChecklist } from "@/components/admin/operations/qa-checklist";
 import { PageHeader } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
           <Card className="p-6">
             <CardHeader>
               <CardTitle>QA Checklist</CardTitle>
-              <Button variant="outline">Open</Button>
+              <QAChecklist />
             </CardHeader>
             <CardContent className="space-y-3">
               {qaChecklist.map((item) => (
@@ -112,7 +113,7 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
           <Card className="p-6">
             <CardHeader>
               <CardTitle>QA Checklist</CardTitle>
-              <Button variant="outline">Open</Button>
+              <QAChecklist />
             </CardHeader>
             <CardContent className="space-y-3">
               {qaChecklist.map((item) => (

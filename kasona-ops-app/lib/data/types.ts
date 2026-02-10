@@ -77,10 +77,11 @@ export type CustomerBasicInfo = {
   contract_size: number | null;
   start_date: string | null;
   end_date: string | null;
-  charge_type: "Reatiner" | "Per Hour" | "Package" | "Fixed Fee" | null;
+  charge_type: "Retainer" | "Per Hour" | "Package" | "Fixed Fee" | null;
   billing_type: "Quarterly" | "Monthly" | "Project-based" | "Per Output" | null;
   billing_address: string | null;
   billing_email: string | null;
+  tokens_processed: number | null;
   is_current: boolean | null;
   entered_at: string | null;
   exited_at: string | null;
@@ -95,6 +96,7 @@ export type CustomerBasicInfo = {
   payment_terms: number | null;
   owner_id: string | null;
   creator_id: string | null;
+  invoice_sent: boolean | null; // Rechnungssendung (ja/nein)
 };
 
 export type CustomerContact = {
@@ -118,7 +120,7 @@ export type CustomerLink = {
   company_id: number;
   title: string;
   url: string;
-  link_type: "folder" | "document" | "website" | "other" | null;
+  link_type: "folder" | "document" | "website" | "linkedin" | "other" | null;
   created_at: string | null;
   created_by: string | null;
 };
@@ -243,3 +245,34 @@ export type TaskInsert = Partial<Task> & {
 };
 
 export type TaskUpdate = Partial<Task>;
+
+export type TransactionCost = {
+  id: string;
+  cost_name: string;
+  cost_category: 'SOFTWARE' | 'STEUERN' | 'PERSONALKOSTEN' | 'REISEKOSTEN' |
+  'FAHRZEUGKOSTEN' | 'BUEROBEDARF' | 'ELEKTRONIK' | 'VERSICHERUNGEN' |
+  'BERATUNG' | 'RAUMKOSTEN' | 'MARKETING' | 'BANKGEBUEHREN' | 'SONSTIGES';
+  cost_type: 'einmalig' | 'monatlich' | 'quartalsweise' | 'halbjaehrlich' | 'jaehrlich';
+  cost_nature: 'fix' | 'variabel';
+  amount: number | null;
+  currency: string;
+  start_date: string | null;
+  end_date: string | null;
+  next_due_date: string | null;
+  status: 'active' | 'paused' | 'cancelled';
+  vendor: string | null;
+  invoice_reference: string | null;
+  payment_method: 'bank_transfer' | 'credit_card' | 'paypal' | 'direct_debit' | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  owner_id: string | null;
+  creator_id: string | null;
+};
+
+export type TransactionCostInsert = Partial<TransactionCost> & {
+  cost_name: string;
+  cost_category: TransactionCost['cost_category'];
+};
+
+export type TransactionCostUpdate = Partial<TransactionCost>;

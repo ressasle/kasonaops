@@ -46,6 +46,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   ).length;
   const operationsWaiting = profiles.filter((profile) => profile.product_status === "to review").length;
   const assignedToMe = customers.filter((customer) => customer.owner_id === currentOwnerId).length;
+  const totalTokensProcessed = customers.reduce((sum, customer) => sum + (customer.tokens_processed ?? 0), 0);
 
   return (
     <div className="space-y-10">
@@ -57,6 +58,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       <CustomersOverviewStats
         totalCustomers={customers.length}
         assignedToMe={assignedToMe}
+        totalTokensProcessed={totalTokensProcessed}
         operationsQueue={{ pending: operationsPending, waiting: operationsWaiting }}
       />
 

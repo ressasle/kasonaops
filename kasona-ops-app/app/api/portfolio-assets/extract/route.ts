@@ -163,10 +163,14 @@ Your task is to extract ALL portfolio holdings/investments from the provided doc
 - **currency**: EUR, USD, CHF, GBP, etc.
 - **sector**: Technology, Healthcare, Finance, Energy, Consumer, etc.
 
-### DO NOT Extract (we handle these separately):
-- Position size / number of shares
+### Optional Position Tracking (extract when present):
+- **shares**: number of units/quantity
+  - Map labels like "Quantity", "Stuck", "Stueck", "Shares", "Units" to shares
+- **avg_cost**: average purchase price / cost basis per unit
+  - Map labels like "Cost Basis", "Einstand", "Average Cost", "Avg Cost" to avg_cost
+
+### DO NOT Extract:
 - Current value / market value
-- Purchase price / cost basis
 - Profit/loss percentages
 
 ## CONFIDENCE SCORING
@@ -289,6 +293,8 @@ Return a valid JSON object with this exact structure:
       "currency": "USD",
       "asset_class": "Stocks",
       "sector": "Technology",
+      "shares": 12,
+      "avg_cost": 140.5,
       "confidence": "high",
       "needs_review": false,
       "review_note": null
@@ -300,6 +306,8 @@ Return a valid JSON object with this exact structure:
       "currency": "EUR",
       "asset_class": "Crypto",
       "sector": null,
+      "shares": 0.25,
+      "avg_cost": 50000,
       "confidence": "high",
       "needs_review": false,
       "review_note": null
@@ -311,6 +319,8 @@ Return a valid JSON object with this exact structure:
       "currency": "EUR",
       "asset_class": "Funds",
       "sector": null,
+      "shares": null,
+      "avg_cost": null,
       "confidence": "low",
       "needs_review": true,
       "review_note": "Name partially visible, please verify. ISIN suggests Luxembourg-domiciled fund."
@@ -323,6 +333,7 @@ IMPORTANT:
 - Return ONLY valid JSON, no markdown code blocks
 - Use null for missing optional fields, never empty strings
 - Always include confidence and needs_review for each asset
+- Use numeric values for shares/avg_cost when present
 - Include extraction_note summarizing what was found
 `;
 
@@ -337,6 +348,8 @@ type ExtractedAsset = {
   currency: string | null;
   asset_class: string;
   sector: string | null;
+  shares: number | null;
+  avg_cost: number | null;
   confidence: "high" | "medium" | "low";
   needs_review: boolean;
   review_note: string | null;
@@ -353,6 +366,8 @@ function validateAndEnrichAssets(assets: any[]): ExtractedAsset[] {
       currency: normalizeCurrency(asset.currency),
       asset_class: normalizeAssetClass(asset.asset_class),
       sector: normalizeNullable(asset.sector),
+      shares: normalizeNumber(asset.shares ?? asset.quantity ?? asset.units),
+      avg_cost: normalizeNumber(asset.avg_cost ?? asset.avgCost ?? asset.cost_basis ?? asset.costBasis),
       confidence: validateConfidence(asset.confidence),
       needs_review: Boolean(asset.needs_review),
       review_note: normalizeNullable(asset.review_note),
@@ -399,6 +414,12 @@ function normalizeCurrency(value: any): string | null {
     if (cleaned.includes(curr)) return curr;
   }
   return null;
+}
+
+function normalizeNumber(value: any): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(String(value).replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeAssetClass(value: any): string {

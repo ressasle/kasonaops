@@ -35,11 +35,29 @@ const getPodcastSchedule = (frequency: string | null) => {
 
 export function FulfillmentQueue({ queue, isAdmin = false, currentUserId }: FulfillmentQueueProps) {
   const [viewAllOwners, setViewAllOwners] = useState(false);
+  const [rows, setRows] = useState<FulfillmentItem[]>(queue);
+  const [savingPortfolioId, setSavingPortfolioId] = useState<string | null>(null);
 
   const visibleQueue = useMemo(() => {
-    if (!currentUserId || (isAdmin && viewAllOwners)) return queue;
-    return queue.filter((item) => item.owner_id === currentUserId || item.creator_id === currentUserId);
-  }, [queue, currentUserId, isAdmin, viewAllOwners]);
+    const source = rows;
+    if (!currentUserId || (isAdmin && viewAllOwners)) return source;
+    return source.filter((item) => item.owner_id === currentUserId || item.creator_id === currentUserId);
+  }, [rows, currentUserId, isAdmin, viewAllOwners]);
+
+  const updateStatus = async (portfolioId: string, productStatus: string) => {
+    setSavingPortfolioId(portfolioId);
+    try {
+      const response = await fetch(`/api/investor-profiles/${encodeURIComponent(portfolioId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_status: productStatus })
+      });
+      if (!response.ok) return;
+      setRows((prev) => prev.map((item) => (item.portfolio_id === portfolioId ? { ...item, product_status: productStatus } : item)));
+    } finally {
+      setSavingPortfolioId(null);
+    }
+  };
 
   return (
     <>
@@ -57,13 +75,14 @@ export function FulfillmentQueue({ queue, isAdmin = false, currentUserId }: Fulf
             <TableHead>Output</TableHead>
             <TableHead>Schedule</TableHead>
             <TableHead>Owner</TableHead>
+            <TableHead>Next Action</TableHead>
             <TableHead>Open</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {visibleQueue.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-sm text-muted-foreground">
+              <TableCell colSpan={7} className="text-sm text-muted-foreground">
                 No items available.
               </TableCell>
             </TableRow>
@@ -75,22 +94,36 @@ export function FulfillmentQueue({ queue, isAdmin = false, currentUserId }: Fulf
                 <div className="text-muted-foreground">{item.company_name ?? item.customer_name ?? "-"}</div>
               </TableCell>
               <TableCell>
-                <Badge
-                  variant={
-                    item.product_status === "to send"
-                      ? "danger"
-                      : item.product_status === "to review"
-                        ? "warning"
-                        : "success"
-                  }
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  value={item.product_status ?? ""}
+                  disabled={savingPortfolioId === item.portfolio_id}
+                  onChange={(event) => updateStatus(item.portfolio_id, event.target.value)}
                 >
-                  {item.product_status ?? "-"}
-                </Badge>
+                  <option value="to create">to create</option>
+                  <option value="created">created</option>
+                  <option value="to review">to review</option>
+                  <option value="to send">to send</option>
+                  <option value="sent out">sent out</option>
+                </select>
               </TableCell>
               <TableCell>{item.output_format ?? "-"} · {item.output_frequency ?? "-"}</TableCell>
               <TableCell>{getPodcastSchedule(item.output_frequency)}</TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {item.owner_id ?? item.creator_id ?? "Unassigned"}
+              </TableCell>
+              <TableCell>
+                {item.product_status === "to create" ? (
+                  <Button size="sm" className="cursor-pointer">Generate Podcast</Button>
+                ) : item.product_status === "created" ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={item.company_id ? `/customers/${item.company_id}` : "/operations"}>Review Podcast</Link>
+                  </Button>
+                ) : item.product_status === "to review" || item.product_status === "to send" ? (
+                  <Button size="sm" className="cursor-pointer">Send Podcast</Button>
+                ) : (
+                  <Badge variant="success">Completed</Badge>
+                )}
               </TableCell>
               <TableCell>
                 {item.company_id ? (

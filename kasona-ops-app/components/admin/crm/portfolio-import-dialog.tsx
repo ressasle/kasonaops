@@ -49,6 +49,8 @@ type ExtractedAsset = {
     asset_class: string;
     category: string | null;
     sector: string | null;
+    shares: string | null;
+    avg_cost: string | null;
     confidence: "high" | "medium" | "low";
     needs_review: boolean;
     review_note: string | null;
@@ -177,6 +179,8 @@ export function PortfolioImportDialog({
                         asset_class: "Other",
                         category: null,
                         sector: null,
+                        shares: null,
+                        avg_cost: null,
                         confidence: "high",
                         needs_review: false,
                         review_note: null,
@@ -201,6 +205,10 @@ export function PortfolioImportDialog({
                             asset.category = value;
                         } else if (["sector", "branche", "sektor"].includes(header)) {
                             asset.sector = value;
+                        } else if (["shares", "quantity", "stück", "units", "menge"].includes(header)) {
+                            asset.shares = value;
+                        } else if (["avg_cost", "average_cost", "cost_basis", "einstandskurs", "einstand"].includes(header)) {
+                            asset.avg_cost = value;
                         }
                     });
 
@@ -257,6 +265,8 @@ export function PortfolioImportDialog({
                     asset_class: normalizeAssetClass(item.asset_class),
                     category: item.category || null,
                     sector: item.sector || null,
+                    shares: item.shares ? String(item.shares) : null,
+                    avg_cost: item.avg_cost ? String(item.avg_cost) : null,
                     confidence: item.confidence || "medium",
                     needs_review: item.needs_review || false,
                     review_note: item.review_note || null,
@@ -325,6 +335,8 @@ export function PortfolioImportDialog({
             asset_class: "Other",
             category: null,
             sector: null,
+            shares: null,
+            avg_cost: null,
             confidence: "high",
             needs_review: true,
             review_note: "Manually added - please fill in details",
@@ -368,8 +380,21 @@ export function PortfolioImportDialog({
             });
 
             if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || "Import failed");
+                const errText = await response.text();
+                let errMessage = "Import failed";
+                try {
+                    const err = JSON.parse(errText) as { error?: string };
+                    errMessage = err.error || errMessage;
+                } catch {
+                    if (errText) errMessage = errText;
+                }
+                console.error("Portfolio import failed", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    payloadCount: payload.length,
+                    body: errText,
+                });
+                throw new Error(errMessage);
             }
 
             onSuccess();
@@ -484,6 +509,8 @@ export function PortfolioImportDialog({
                                                     <TableHead>Currency</TableHead>
                                                     <TableHead>Asset Class</TableHead>
                                                     <TableHead>Category</TableHead>
+                                                    <TableHead>Shares (Optional)</TableHead>
+                                                    <TableHead>Average Cost (Optional)</TableHead>
                                                     <TableHead className="w-10"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -561,6 +588,22 @@ export function PortfolioImportDialog({
                                                                 value={asset.category ?? ""}
                                                                 onChange={(e) => updateAsset(asset.id, "category", e.target.value)}
                                                                 placeholder="e.g. Growth"
+                                                                className="h-8 text-sm w-28"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                value={asset.shares ?? ""}
+                                                                onChange={(e) => updateAsset(asset.id, "shares", e.target.value)}
+                                                                placeholder="Optional"
+                                                                className="h-8 text-sm w-24"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                value={asset.avg_cost ?? ""}
+                                                                onChange={(e) => updateAsset(asset.id, "avg_cost", e.target.value)}
+                                                                placeholder="Optional"
                                                                 className="h-8 text-sm w-28"
                                                             />
                                                         </TableCell>

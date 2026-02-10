@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { SalesLead } from "@/lib/data/sales";
 import type { Task } from "@/lib/data/types";
@@ -66,6 +67,7 @@ export function SalesLeadsTable({ leads, salesTasks, statusOptions }: SalesLeads
           <TableHead>Value</TableHead>
           <TableHead>Probability</TableHead>
           <TableHead>Sales Tasks</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -97,6 +99,17 @@ export function SalesLeadsTable({ leads, salesTasks, statusOptions }: SalesLeads
             <TableCell>{lead.probability ? `${lead.probability}%` : "-"}</TableCell>
             <TableCell>
               <Badge variant="outline">{taskCountByCompany.get(lead.company_id) ?? 0} open</Badge>
+            </TableCell>
+            <TableCell className="text-right">
+              {lead.email ? (
+                <Button asChild variant="outline" size="sm" className="cursor-pointer">
+                  <a href={`mailto:${lead.email}`}>Send Email</a>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="cursor-not-allowed" disabled>
+                  Send Email
+                </Button>
+              )}
             </TableCell>
           </TableRow>
         ))}

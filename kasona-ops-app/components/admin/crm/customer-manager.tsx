@@ -47,9 +47,9 @@ const SOURCE_OPTIONS = ["Inbound", "Outbound"];
 
 const TYPE_OPTIONS = ["customer", "partner", "supplier", "other"];
 
-const PRODUCT_OPTIONS = ["Wealth Intelligence", "Quartals-kompass", "Transformations Paket"];
+const PRODUCT_OPTIONS = ["Transformation Packet", "Market Compass", "Quartals-kompass"];
 
-const CHARGE_TYPE_OPTIONS = ["Reatiner", "Per Hour", "Package", "Fixed Fee"];
+const CHARGE_TYPE_OPTIONS = ["Retainer", "Per Hour", "Package", "Fixed Fee"];
 
 const BILLING_TYPE_OPTIONS = ["Quarterly", "Monthly", "Project-based", "Per Output"];
 
@@ -96,10 +96,10 @@ const EMPTY_STATE: CustomerFormState = {
   website: "",
   phone: "",
   industry: "",
-  status: "",
-  action_status: "",
+  status: "Lead Identified",
+  action_status: "New",
   source: "",
-  type: "",
+  type: "customer",
   expected_deal_value: "",
   probability: "",
   product_type: "",
@@ -244,7 +244,18 @@ export function CustomerManager({
   const handleChange =
     (field: keyof CustomerFormState) =>
       (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        setForm((prev) => ({ ...prev, [field]: event.target.value }));
+        const nextValue = event.target.value;
+        setForm((prev) => {
+          if (field === "email") {
+            const shouldCopyBilling = !prev.billing_email.trim() || prev.billing_email.trim() === prev.email.trim();
+            return {
+              ...prev,
+              email: nextValue,
+              billing_email: shouldCopyBilling ? nextValue : prev.billing_email
+            };
+          }
+          return { ...prev, [field]: nextValue };
+        });
       };
 
   const handleCheckbox = (field: keyof CustomerFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,6 +492,7 @@ export function CustomerManager({
     setForm(mapCustomerToForm(customer));
     setEditingId(customer.company_id);
     setError(null);
+    setPotentialMatches([]);
     setDuplicateConfirmed(false);
   };
 
@@ -568,11 +580,9 @@ export function CustomerManager({
                           <Button variant="outline" size="sm" type="button" asChild>
                             <Link href={`/customers/${match.company_id}`}>Open Profile</Link>
                           </Button>
-                          {!isNewLead && (
-                            <Button variant="outline" size="sm" type="button" onClick={() => handleEdit(match)}>
-                              Load
-                            </Button>
-                          )}
+                          <Button variant="outline" size="sm" type="button" onClick={() => handleEdit(match)}>
+                            Load
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -774,6 +784,17 @@ export function CustomerManager({
                     <div className="space-y-2">
                       <Label>End Date</Label>
                       <Input type="date" value={form.end_date} onChange={handleChange("end_date")} />
+                      {form.end_date && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-0 text-xs"
+                          onClick={() => setForm((prev) => ({ ...prev, end_date: "" }))}
+                        >
+                          Clear end date
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -937,6 +958,7 @@ export function CustomerManager({
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Tokens</TableHead>
                   <TableHead>Updated</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -967,6 +989,7 @@ export function CustomerManager({
                     </TableCell>
                     <TableCell>{customer.action_status ?? "-"}</TableCell>
                     <TableCell>{customer.expected_deal_value ?? "-"}</TableCell>
+                    <TableCell>{(customer.tokens_processed ?? 0).toLocaleString("en-US")}</TableCell>
                     <TableCell>{customer.updated_at ? customer.updated_at.slice(0, 10) : "-"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -981,6 +1004,9 @@ export function CustomerManager({
                               <>
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/customers/${customer.company_id}`}>Open</Link>
+                          </Button>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/customers/${customer.company_id}/investor-profile`}>Add Investor Profile</Link>
                           </Button>
                           <Button
                             variant="outline"

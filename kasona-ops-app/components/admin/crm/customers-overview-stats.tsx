@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 type CustomersOverviewStatsProps = {
   totalCustomers: number;
   assignedToMe: number;
+  totalTokensProcessed: number;
   operationsQueue: {
     pending: number;
     waiting: number;
@@ -14,10 +15,11 @@ type CustomersOverviewStatsProps = {
 export function CustomersOverviewStats({
   totalCustomers,
   assignedToMe,
+  totalTokensProcessed,
   operationsQueue
 }: CustomersOverviewStatsProps) {
   return (
-    <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+    <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
       <Card className="p-5">
         <div className="label-mono text-xs text-muted-foreground">Operations Queue</div>
         <div className="mt-3 text-2xl font-semibold">{operationsQueue.pending}</div>
@@ -34,6 +36,11 @@ export function CustomersOverviewStats({
         <div className="label-mono text-xs text-muted-foreground">Customers Assigned To Me</div>
         <div className="mt-3 text-2xl font-semibold">{assignedToMe}</div>
         <div className="mt-1 text-xs text-accent">Based on owner assignment</div>
+      </Card>
+      <Card className="p-5">
+        <div className="label-mono text-xs text-muted-foreground">Tokens Processed</div>
+        <div className="mt-3 text-2xl font-semibold">{totalTokensProcessed.toLocaleString("en-US")}</div>
+        <div className="mt-1 text-xs text-accent">Across all customers</div>
       </Card>
     </section>
   );

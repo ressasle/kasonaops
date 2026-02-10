@@ -23,6 +23,7 @@ type TaskFormState = {
   title: string;
   company_id: string;
   owner_id: string;
+  product: string;
   status: Task["status"];
   priority: Task["priority"];
   category: NonNullable<Task["category"]>;
@@ -35,6 +36,7 @@ const EMPTY_STATE: TaskFormState = {
   title: "",
   company_id: "",
   owner_id: "",
+  product: "",
   status: "todo",
   priority: "medium",
   category: "general",
@@ -52,10 +54,13 @@ const CATEGORY_OPTIONS: Array<NonNullable<Task["category"]>> = [
   "general",
 ];
 
+const PRODUCT_OPTIONS = ["Transformation Packet", "Market Compass", "Quartals-kompass", "Other"];
+
 export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "" }: TaskManagerProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [form, setForm] = useState<TaskFormState>(EMPTY_STATE);
   const [ownerFilter, setOwnerFilter] = useState<string>(initialOwnerFilter);
+  const [viewFilter, setViewFilter] = useState<"all" | "upcoming">("all");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +71,27 @@ export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "
     };
 
   const filteredTasks = useMemo(() => {
-    if (!ownerFilter) return tasks;
-    return tasks.filter((task) => task.owner_id === ownerFilter);
-  }, [tasks, ownerFilter]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return tasks
+      .filter((task) => (ownerFilter ? task.owner_id === ownerFilter : true))
+      .filter((task) => {
+        if (viewFilter !== "upcoming") return true;
+        if (!task.due_date) return false;
+        const dueDate = new Date(task.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate >= today;
+      })
+      .sort((a, b) => {
+        if (viewFilter === "upcoming") {
+          const aDue = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          const bDue = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          return aDue - bDue;
+        }
+        return new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+      });
+  }, [tasks, ownerFilter, viewFilter]);
 
   const totals = useMemo(() => {
     return {
@@ -89,11 +112,12 @@ export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: form.title.trim(),
-          company_id: form.company_id ? Number(form.company_id) : null,
-          owner_id: form.owner_id || null,
-          status: form.status,
+          body: JSON.stringify({
+            title: form.title.trim(),
+            company_id: form.company_id ? Number(form.company_id) : null,
+            owner_id: form.owner_id || null,
+            related_entity_type: form.product || null,
+            status: form.status,
           priority: form.priority,
           category: form.category,
           due_date: form.due_date || null,
@@ -198,6 +222,17 @@ export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "
                 </select>
               </div>
               <div className="space-y-2">
+                <Label>Product</Label>
+                <select value={form.product} onChange={handleChange("product")} className="h-10 w-full rounded-full border border-input bg-transparent px-3 text-sm">
+                  <option value="">Select product</option>
+                  {PRODUCT_OPTIONS.map((product) => (
+                    <option key={product} value={product}>{product}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input type="date" value={form.due_date} onChange={handleChange("due_date")} />
               </div>
@@ -223,6 +258,24 @@ export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "
             <Badge variant="warning">{totals.inProgress} active</Badge>
             <Badge variant="danger">{totals.high} high/urgent</Badge>
             <Badge variant="outline">{totals.blocked} blocked</Badge>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewFilter === "all" ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => setViewFilter("all")}
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewFilter === "upcoming" ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => setViewFilter("upcoming")}
+            >
+              Upcoming
+            </Button>
           </div>
           <OwnerSelect
             value={ownerFilter}
@@ -249,7 +302,23 @@ export function TaskManager({ initialTasks, ownerOptions, initialOwnerFilter = "
               {filteredTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell>
-                    <div className="text-sm font-medium">{task.title}</div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={task.status === "done"}
+                        className="cursor-pointer"
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          handleTaskUpdate(task.id, {
+                            status: checked ? "done" : "todo",
+                            completed_at: checked ? new Date().toISOString() : null,
+                          }).catch((updateError) => {
+                            setError(updateError instanceof Error ? updateError.message : "Unable to update task");
+                          });
+                        }}
+                      />
+                      <div className={`text-sm font-medium ${task.status === "done" ? "opacity-60 line-through" : ""}`}>{task.title}</div>
+                    </div>
                     <div className="text-xs text-muted-foreground">Company {task.company_id ?? "-"}</div>
                   </TableCell>
                   <TableCell>{task.owner_id ?? "Unassigned"}</TableCell>

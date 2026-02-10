@@ -17,15 +17,15 @@ CRM & Operations tool for customer management and personalized portfolio briefin
 
 ### Essential Files to Review
 
-| Purpose | File |
-|---------|------|
-| **Current Task Plan** | `kasona-ops-app/OPENCODE_HANDOVER_PLAN.md` |
+| Purpose                       | File                                            |
+| ----------------------------- | ----------------------------------------------- |
+| **Current Task Plan**   | `kasona-ops-app/OPENCODE_HANDOVER_PLAN.md`    |
 | **Feature Sprint Plan** | `kasona-ops-app/FEATURE_IMPROVEMENTS_PLAN.md` |
-| **Database Schema** | `database/schema.sql` |
-| **TypeScript Types** | `kasona-ops-app/lib/database.types.ts` |
-| **Data Model SOP** | `docs/sop_data_model.md` |
-| **Style Guide** | `docs/style_guide.md` |
-| **Admin Styling** | `docs/KASONA_ADMIN_STYLE.md` |
+| **Database Schema**     | `database/schema.sql`                         |
+| **TypeScript Types**    | `kasona-ops-app/lib/database.types.ts`        |
+| **Data Model SOP**      | `docs/sop_data_model.md`                      |
+| **Style Guide**         | `docs/style_guide.md`                         |
+| **Admin Styling**       | `docs/KASONA_ADMIN_STYLE.md`                  |
 
 ### Existing UI Components (Don't Recreate)
 
@@ -90,11 +90,13 @@ Application runs at `http://localhost:3000`
 - **TypeScript Types**: `kasona-ops-app/lib/database.types.ts`
 
 ### Applied Schema Changes (Feature Improvement Sprint)
+
 - `kasona_portfolio_assets` now includes `shares`, `avg_cost` (`database/migrations/add_shares_avg_cost_columns.sql`)
 - `kasona_tasks` added for task management (`database/migrations/create_kasona_tasks_table.sql`)
 - `kasona_customer_links` added for external links per customer (`database/migrations/create_kasona_customer_links_table.sql`)
 
 ### Feature Improvement Sprint (A-D) Status
+
 - Workstream A (Onboarding & Import): completed
 - Workstream B (Customer Detail View): completed
 - Workstream C (Tasks System): completed
@@ -103,14 +105,16 @@ Application runs at `http://localhost:3000`
 
 ## Documentation Index
 
-| Document | Purpose |
-|----------|---------|
-| [Data Schemas](docs/project-setup/gemini.md) | Supabase tables & schemas |
-| [Data Model SOP](docs/sop_data_model.md) | Table relationships |
-| [Portfolio Assets SOP](docs/sop_portfolio_assets.md) | Portfolio ingestion flow |
-| [Style Guide](docs/style_guide.md) | Colors, typography, components |
-| [Admin Style](docs/KASONA_ADMIN_STYLE.md) | Admin panel specifics |
-| [Operations Manual](docs/operations_manual.md) | Business processes |
+| Document                                                        | Purpose                                     |
+| --------------------------------------------------------------- | ------------------------------------------- |
+| [Data Schemas](docs/project-setup/gemini.md)                       | Supabase tables & schemas                   |
+| [Data Model SOP](docs/sop_data_model.md)                           | Table relationships                         |
+| [Portfolio Assets SOP](docs/sop_portfolio_assets.md)               | Portfolio ingestion flow                    |
+| [Style Guide](docs/style_guide.md)                                 | Colors, typography, components              |
+| [Admin Style](docs/KASONA_ADMIN_STYLE.md)                          | Admin panel specifics                       |
+| [Operations Manual](docs/operations_manual.md)                     | Business processes                          |
 | [Feature QA Checklist](docs/qa_feature_improvements_2026-02-08.md) | Click-path verification for workstreams A-D |
+| [Finance Spec](docs/Finance_to-be-adapted.md)                      | Finance System Architecture & Schema        |
+| [Finance QA Guide](docs/qa_finance_handover.md)                    | Testing steps for Finance System            |
 
 made by Kasona for all

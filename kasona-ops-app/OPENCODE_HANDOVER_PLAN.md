@@ -1,515 +1,309 @@
-# OpenCode Handover Plan: App Enhancements
+# OpenCode Handover Plan: Video Review Fixes & Improvements
 
-## Overview
-This document provides a detailed implementation plan for two major feature sets:
-- **Section B**: Team Section + Reminder Quick Action
-- **Section C**: Customers Page UX Overhaul
-
----
-
-# Section B: Team Section + Reminder Quick Action
-
-## B.1 — Team Section & Member Profiles
-
-### Context
-- The `kasona_team_members` table **already exists** in Supabase with complete schema
-- **No Team UI components exist yet** — must be built from scratch
-
-### Database Schema (Already Exists)
-```
-kasona_team_members:
-  - member_id: string (PK)
-  - first_name, last_name, display_name, email, phone
-  - avatar_url, date_of_birth, hire_date, termination_date
-  - is_active: boolean
-  - contract_type: 'full_time' | 'part_time' | 'freelancer' | 'working_student' | 'intern'
-  - salary_gross, salary_currency, tax_id, social_security_id
-  - street, city, postal_code, country, iban, bank_name
-  - role: 'admin' | 'manager' | 'analyst' | 'assistant' | 'viewer'
-  - department: 'management' | 'sales' | 'operations' | 'finance' | 'tech'
-  - job_title, auth_user_id, notes
-  - created_at, updated_at
-```
-
-### Files to Create
-
-#### 1. [NEW] `app/(admin)/team/page.tsx`
-- Team list page with grid/table of members
-- Filter by department, role, active status
-- Search by name/email
-- Link each member card to their profile
-
-#### 2. [NEW] `app/(admin)/team/[member_id]/page.tsx`
-- Individual team member profile page
-- Display all member info (personal, HR, role)
-- Edit button → opens form
-- Tabs: Overview | HR Details | Notes
-
-#### 3. [NEW] `components/admin/team/team-manager.tsx`
-- Main team list component
-- Uses similar patterns to `CustomerManager`
-- Grid of `TeamMemberCard` components
-- "Add Team Member" button
-
-#### 4. [NEW] `components/admin/team/team-member-card.tsx`
-- Card showing avatar, name, role, department
-- Quick actions: Email, View Profile
-- Active/Inactive badge
-
-#### 5. [NEW] `components/admin/team/team-member-form.tsx`
-- Form for creating/editing team members
-- Grouped sections: Personal Info, Contact, HR/Payroll, Role & Access
-- Uses existing UI components (Input, Select, etc.)
-
-#### 6. [NEW] `lib/data/team.ts`
-- `getTeamMembers()` — fetch all active members
-- `getTeamMember(id)` — fetch single member
-- `createTeamMember(data)` — insert new member
-- `updateTeamMember(id, data)` — update member
-
-#### 7. [NEW] `app/api/team/route.ts`
-- GET: List all team members
-- POST: Create new team member
-
-#### 8. [NEW] `app/api/team/[member_id]/route.ts`
-- GET: Single member details
-- PATCH: Update member
-- DELETE: Soft-delete (set is_active = false)
-
-### Files to Modify
-
-#### 1. [MODIFY] `components/admin/admin-sidebar.tsx`
-Add "Team" nav item after "Customers":
-```tsx
-{ label: "Team", href: "/team", icon: Users2 }
-```
-Import `Users2` from lucide-react.
+> **Generated:** 2026-02-09
+> **Source:** User Video Review (Transcript)
+> **Goal:** Execute 30+ fixes and improvements across the Kasona Ops application.
 
 ---
 
-## B.2 — "Set Reminder" Quick Action Button
+## 📋 Executive Summary
 
-### Context
-- `QuickActionButton` component exists at `components/admin/quick-action-button.tsx`
-- Has 3 actions: New Task, New Lead, New Onboarding
-- `reminder_date` column exists in `kasona_customer_basic_info`
-- `action_status` includes `'Reminder Set'` as valid enum
+This document outlines **6 Workstreams** of tasks identified in a comprehensive video review.
+These tasks range from **Critical Bugs** (Priority 1) to **UI/UX Polish** (Priority 2/3).
 
-### Files to Create
+**Agents/Developers:** You can execute these workstreams in parallel.
+**Critical:** Follow the **UI/UX Design Guidelines** at the bottom of this document.
 
-#### 1. [NEW] `components/admin/reminder-dialog.tsx`
-Dialog component for setting reminders:
-- Customer selector (searchable dropdown)
-- Date picker for `reminder_date`
-- Optional notes field
-- On submit: Updates customer's `reminder_date` and sets `action_status = 'Reminder Set'`
+---
 
-### Files to Modify
+## 💾 Database Schema Changes (Required)
 
-#### 1. [MODIFY] `components/admin/quick-action-button.tsx`
-Add new menu item:
-```tsx
-<DropdownMenuItem onClick={() => setShowReminderDialog(true)} className="gap-2">
-  <Bell className="h-4 w-4" />
-  Set Reminder
-</DropdownMenuItem>
+The following schema changes are required to support the new features.
+Run these migrations **before** working on the respective components.
+
+### 1. New Table: `kasona_tasks` (Workstream 6)
+
+Replaces local JSON tasks with Supabase-backed tasks.
+
+```sql
+CREATE TABLE kasona_tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id INT REFERENCES kasona_customer_basic_info(company_id),
+  owner_id TEXT REFERENCES kasona_team_members(member_id),
+  creator_id TEXT REFERENCES kasona_team_members(member_id),
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT CHECK (status IN ('todo', 'in_progress', 'blocked', 'done')) DEFAULT 'todo',
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+  category TEXT CHECK (category IN ('sales', 'finance', 'fulfillment', 'product', 'team', 'general')),
+  due_date DATE,
+  reminder_date TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  source TEXT CHECK (source IN ('manual', 'automation', 'system')) DEFAULT 'manual',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
-- Import `Bell` from lucide-react
-- Add state: `const [showReminderDialog, setShowReminderDialog] = useState(false)`
-- Render `<ReminderDialog open={showReminderDialog} onOpenChange={setShowReminderDialog} />`
 
----
+### 2. New Table: `kasona_customer_links` (Workstream 2)
 
-# Section C: Customers Page UX Overhaul
+For storing external resources (SharePoint, LinkedIn, etc.).
 
-## C.1 — Separate "Add New" from "Edit/Review"
+```sql
+CREATE TABLE kasona_customer_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id INT REFERENCES kasona_customer_basic_info(company_id),
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  link_type TEXT CHECK (link_type IN ('folder', 'document', 'website', 'linkedin', 'other')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by TEXT REFERENCES kasona_team_members(member_id)
+);
+```
 
-### Problem
-Current `customers/page.tsx` displays `CustomerManager`, `InvestorProfileManager`, and `PortfolioAssetsManager` all on one page — mixing creation with review/editing.
+### 3. Updates to `kasona_customer_basic_info` (Workstream 2)
 
-### Solution
-Refactor to tab-based navigation where "Add New" is a **separate route** or modal, not inline with the list.
-
-### Files to Modify
-
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx`
-- Remove inline form from `CustomerManager` — use it for **list/review only**
-- Add prominent "Add Customer" button that links to `/customers/new`
-- Keep the sub-navigation (Overview, Profiles, Assets) but conditionally show only the relevant manager
-
-#### 2. [MODIFY] `components/admin/crm/customer-manager.tsx`
-- Add new prop: `mode: 'list' | 'form'` (default: 'list')
-- In 'list' mode: Show table + filters only, no inline form
-- In 'form' mode (for `/customers/new`): Show form only
-- Remove the "Add/Edit" toggle that currently exists inline
-
----
-
-## C.2 — Fix Sub-Navigation Bar
-
-### Problem
-The sub-navigation buttons (Overview, Profiles, Assets) are present but clicking them doesn't properly isolate each view — all 3 managers always render.
-
-### Files to Modify
-
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx`
-Conditionally render based on `activeView`:
-```tsx
-{activeView === "overview" && (
-  <CustomerManager customers={customers} supabaseReady={supabaseReady} mode="list" />
-)}
-{activeView === "profiles" && (
-  <InvestorProfileManager profiles={profiles} supabaseReady={supabaseReady} />
-)}
-{activeView === "assets" && (
-  <PortfolioAssetsManager assets={assets} supabaseReady={supabaseReady} />
-)}
+```sql
+ALTER TABLE kasona_customer_basic_info
+ADD COLUMN tokens_processed INT DEFAULT 0;
+-- Note: 'billing_email' already exists, ensure it is used.
 ```
 
 ---
 
-## C.2 — Add Overview Stats Section
+## 🛠️ Workstream 1: Critical Bugs 🚨
 
-### Requirements
-Mirror the Dashboard stats at the top of the Customers page:
-1. **Operations Queue** — link to `/operations`
-2. **Total Customers** — count from Supabase
-3. **Customers Assigned to Me** — filter by `owner_id` (requires auth context)
+**Focus:** Blocking issues that prevent core usage.
 
-### Files to Create
+### 1.1 Duplicate Check Bug [01:14]
 
-#### 1. [NEW] `components/admin/crm/customers-overview-stats.tsx`
-```tsx
-interface Props {
-  totalCustomers: number;
-  assignedToMe: number;
-  operationsQueue: { pending: number; waiting: number };
-}
-```
-- Three stat cards similar to Dashboard
-- Links to relevant sections
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Issue:** Selecting an existing lead from the "Duplicate Found" list either re-enables the check loop or fails to load the profile data correctly.
+- **Fix:**
+  - Locate `isDuplicate` logic and the interaction handler for the duplicate warning.
+  - Ensure selecting a duplicate **bypasses** the create flow and **loads** the existing `company_id` into the edit form.
+  - State `mode` should switch to `'edit'`.
 
-### Files to Modify
+### 1.2 Customer ID Generation [05:51]
 
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx`
-- Import and render `CustomersOverviewStats` above the sub-nav
-- Pass computed stats from the fetched data
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Issue:** Customer ID is not auto-generating / rules are wrong.
+- **Fix:**
+  - Verify `handleSubmit` does **not** try to generate a `company_id` client-side.
+  - Let Supabase `SERIAL` / auto-increment handle it on INSERT.
+  - Return the new `company_id` from the API response and update local state.
 
----
+### 1.3 Hidden Save Button (Finance) [08:49]
 
-## C.2.a — Checklist Info Popup
+- **File:** `components/admin/crm/company-profile.tsx` (Finance Section)
+- **Issue:** "Save" button in Billing Address section is hidden (overflow issue) or unclickable (z-index).
+- **Fix:**
+  - Inspect the Billing Address container.
+  - Fix CSS `overflow`, `height`, or `z-index` properties to ensure the Save button is fully visible and interactive.
 
-### Requirement
-Add a small transparent "ⓘ" icon that opens a popup showing checklists so employees can verify they completed all steps.
+### 1.4 Portfolio Import Failure [19:24]
 
-### Files to Create
+- **File:** `components/admin/crm/portfolio-import-dialog.tsx`
+- **Issue:** Clicking "Confirm and Import" during PDF/Screenshot upload results in an error.
+- **Fix:**
+  - Add error logging to `handleImport`.
+  - Verify the `/api/portfolio/import` endpoint correctly handles `multipart/form-data` or JSON payload for file assets.
+  - Ensure `Content-Type` headers are correct.
 
-#### 1. [NEW] `components/admin/crm/checklist-popup.tsx`
-- Small icon button (Info icon from lucide)
-- Opens a Popover or Dialog
-- Displays customer-fulfillment checklist items (from data or hardcoded)
-- Checkboxes for: Portfolio Uploaded, Profile Created, DNA Completed, Handover Delivered
+### 1.5 Sales Filter Reset [21:30]
 
-### Files to Modify
+- **File:** `components/admin/sales/sales-filters.tsx`
+- **Issue:** "Reset Filter" button does nothing.
+- **Fix:**
+  - Wire up the `onClick` handler to clear all local filter state (`setFilters({})`) and reload the data.
 
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx` or `customer-manager.tsx`
-- Add `<ChecklistPopup />` component near the page header
+### 1.6 Task Status Data Source [26:24]
 
----
-
-## C.2.b — Filter by Industry, Product, Type
-
-### Current State
-`CustomerManager` already has filter state for `industry`, `type`, but UI may be incomplete.
-
-### Files to Modify
-
-#### 1. [MODIFY] `components/admin/crm/customer-manager.tsx`
-- Ensure filter dropdowns are visible and functional:
-  - **Industry**: Investing, Industrial Services, Consulting, E-Commerce
-  - **Type**: customer, partner, supplier, other
-  - **Product**: Wealth Intelligence, Quartals-kompass, Transformations Paket
-- Place filters in a dedicated filter bar below sub-nav
+- **File:** `components/admin/tasks/task-manager.tsx`
+- **Issue:** Task view incorrectly displays "Action Status" (Customer entity) instead of "Task Status" (Task entity).
+- **Fix:**
+  - Refactor `TaskRow` to display `task.status` (todo/in_progress/done).
+  - Ensure the API fetch joins the correct data but prefers Task table fields for the status column.
 
 ---
 
-## C.2.c — Tasks Section for Fulfillment
+## 🛠️ Workstream 2: Customer Profile (UX)
 
-### Requirement
-Show tasks related to customer fulfillment based on `action_status` column. Also show reminders that have been set.
+**Focus:** Enhancing the Customer Detail View.
 
-### Database Context
-- `action_status` enum: 'Renewed', 'To Expand', 'Backlog', 'New', 'To Check', 'Reminder Set', 'To Reach Out', 'Mail Sent'
-- `reminder_date` column holds scheduled reminder dates
+### 2.1 Empty Profile State [01:56]
 
-### Files to Create
+- **File:** `components/admin/crm/company-profile.tsx`
+- **Task:** Improve visual design when profile data is empty.
+- **Fix:** Use a "Skeleton" or "Empty Placeholder" state that encourages filling data, rather than showing a broken/empty standard form.
 
-#### 1. [NEW] `components/admin/crm/fulfillment-tasks.tsx`
-- List customers grouped by `action_status`
-- Priority order: "Reminder Set" (show date), "To Check", "To Reach Out", etc.
-- Quick action buttons to update status or mark complete
+### 2.2 Default Statuses [03:28]
 
-### Files to Modify
+- **File:** `components/admin/crm/customer-manager.tsx` (`EMPTY_STATE`)
+- **Task:** Set sensible defaults.
+- **Fix:**
+  - `status` default: `"Lead Identified"`
+  - `action_status` default: `"New"`
+  - `type` default: `"customer"`
 
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx`
-- Add new sub-nav tab: "Tasks"
-- When `activeView === "tasks"`: render `<FulfillmentTasks />`
+### 2.3 External Links Section [06:05]
 
----
+- **File:** `components/admin/crm/customer-links-section.tsx` (New Component)
+- **Task:** Add section for SharePoint, LinkedIn, Website links.
+- **Fix:**
+  - Create UI list of links.
+  - fetching from `kasona_customer_links`.
+  - "Add Link" button + Dialog.
 
-## C.2.d — Upcoming Customers View
+### 2.4 Token Tracking [09:26]
 
-### Requirement
-Show customers based on `start_date` — upcoming onboardings or renewals.
+- **File:** `components/admin/crm/customers-overview-stats.tsx`
+- **Task:** Display "Tokens Processed" per customer.
+- **Fix:** Render the `tokens_processed` count from `kasona_customer_basic_info`.
 
-### Files to Create
+### 2.5 Edit Sales Data [10:34]
 
-#### 1. [NEW] `components/admin/crm/upcoming-customers.tsx`
-- Query customers where `start_date >= today`
-- Sort by closest date first
-- Show: Company Name, Start Date, Product, Status
-- Calendar view or list view
-
-### Files to Modify
-
-#### 1. [MODIFY] `app/(admin)/customers/page.tsx`
-- Add sub-nav tab: "Upcoming"
-- Render `<UpcomingCustomers />` when selected
+- **File:** `components/admin/crm/company-profile.tsx`
+- **Task:** Allow editing Sales data (Deal Value, Probability) directly from Profile view.
+- **Fix:** Add "Edit" pencil icon to Sales section headers → opens `CompanyProfileEditDialog` pre-filtered to Sales tab.
 
 ---
 
-# Implementation Order (Recommended)
+## 🛠️ Workstream 3: Finance & Contracts
 
-## Phase 1: Foundation
-1. Create `lib/data/team.ts` with data fetching functions
-2. Create Team API routes (`app/api/team/...`)
-3. Create Team page and components
-4. Add Team to sidebar
+**Focus:** Data entry improvements.
 
-## Phase 2: Quick Actions
-5. Create `ReminderDialog` component
-6. Update `QuickActionButton` with reminder option
+### 3.1 Field Reorganization [05:04]
 
-## Phase 3: Customers UX Overhaul
-7. Fix sub-navigation to conditionally render views
-8. Separate add-new from list/review
-9. Add `CustomersOverviewStats`
-10. Add filter bar improvements
-11. Create `ChecklistPopup`
-12. Create `FulfillmentTasks`
-13. Create `UpcomingCustomers`
+- **File:** `components/admin/crm/company-profile.tsx`
+- **Task:** Move fields.
+- **Fix:** Move "Expected Deal Value" and "Probability" **out** of Finance section and **into** Sales section.
 
----
+### 3.2 Dropdowns Over Text Inputs [07:34]
 
-# UI/UX Design Guidelines (CRITICAL)
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Task:** Replace text inputs with Select dropdowns.
+- **Fix:**
+  - `charge_type`: ['Retainer', 'Per Hour', 'Package', 'Fixed Fee']
+  - `billing_type`: ['Quarterly', 'Monthly', 'Project-based', 'Per Output']
 
-All new components MUST follow these design rules. This is a professional CRM app with dark mode aesthetics.
+### 3.3 Billing Email Default [07:54]
 
----
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Task:** Auto-fill Billing Email.
+- **Fix:** When `email` (Main Contact) is entered, auto-copy to `billing_email` if empty.
 
-## Design System Overview
+### 3.4 Contract Dates [08:13]
 
-| Aspect | Value |
-|--------|-------|
-| **Style** | Glassmorphism + Dark Mode |
-| **Primary Colors** | Orange/Pink gradient (`from-orange-400 to-pink-400`) |
-| **Background** | Radial gradient: `hsl(30 20% 8%) → hsl(264 20% 2%)` |
-| **Cards** | `glass-panel` class with `bg-white/5`, `backdrop-blur` |
-| **Text** | White primary, `text-muted-foreground` for secondary |
-| **Borders** | `border-border/50` or `border-border/60` |
-| **Border Radius** | `rounded-2xl` for cards, `rounded-xl` for inner elements |
-| **Shadows** | `shadow-glow` for accent elements |
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Task:** Fix Date Pickers.
+- **Fix:**
+  - Verify `DatePicker` component works for `start_date` and `end_date`.
+  - Make `end_date` **optional** (allow null/clearing).
 
 ---
 
-## Icon Rules (CRITICAL)
+## 🛠️ Workstream 4: Sales Module
 
-| Rule | Do | Don't |
-|------|----|----- |
-| **No emoji icons** | Use SVG icons from Lucide (`lucide-react`) | Use emojis like 🎨 🚀 ⚙️ as UI icons |
-| **Consistent sizing** | Use `h-4 w-4` for menu items, `h-6 w-6` for buttons | Mix different icon sizes |
-| **Import correctly** | `import { Bell, Users2 } from "lucide-react"` | Use incorrect or made-up icon names |
+**Focus:** Sales process logic.
 
-**Available icons in codebase**: `ClipboardCheck`, `LayoutGrid`, `Megaphone`, `Settings`, `Users`, `DollarSign`, `Plus`, `UserPlus`, `FolderPlus`, `ListTodo`, `Loader2`, `Search`
+### 4.1 Product Type Logic [03:57]
 
----
+- **File:** `components/admin/crm/customer-manager.tsx`
+- **Task:** Update Options.
+- **Fix:**
+  - Rename "Consulting Project" → "**Transformation Packet**"
+  - Rename "Free User" → "**Market Compass**"
+  - Remove/Update "Wealth Intelligence" logic as requested.
 
-## Interaction & Cursor (CRITICAL)
+### 4.2 Communication Features [22:08]
 
-| Rule | Do | Don't |
-|------|----|----- |
-| **Cursor pointer** | Add `cursor-pointer` to all clickable cards/buttons | Leave default cursor on interactive elements |
-| **Hover feedback** | Use `hover:bg-white/10` or color transitions | No indication element is interactive |
-| **Smooth transitions** | Use `transition-colors duration-200` | Instant state changes or >500ms |
-| **Loading states** | Disable buttons during async, show `<Loader2 className="animate-spin" />` | Allow double-clicks or no feedback |
+- **File:** `app/(admin)/sales/page.tsx`
+- **Task:** Add "Email" button.
+- **Fix:** Add a generic "Send Email" action button to Sales rows that opens `mailto:` with the customer email.
 
 ---
 
-## Component Patterns (Follow Existing Codebase)
+## 🛠️ Workstream 5: Investor Profile & Portfolio
 
-### Cards
-```tsx
-<Card className="p-5">
-  <div className="label-mono text-xs text-muted-foreground">Label</div>
-  <div className="mt-3 text-2xl font-semibold">Value</div>
-  <div className="mt-1 text-xs text-accent">Subtitle</div>
-</Card>
-```
+**Focus:** Asset management.
 
-### Glass Panels
-```tsx
-<div className="glass-panel rounded-2xl p-4">
-  {/* content */}
-</div>
-```
+### 5.1 Optional Fields [18:10]
 
-### Stat Items
-```tsx
-<div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
-  <div>
-    <div className="text-sm font-medium">Title</div>
-    <div className="text-xs text-muted-foreground">Subtitle</div>
-  </div>
-  <Badge variant="warning">Alert</Badge>
-</div>
-```
+- **File:** `components/admin/crm/portfolio-import-dialog.tsx`
+- **Task:** Visual cues.
+- **Fix:** Mark "Shares" and "Average Cost" as **(Optional)** in the UI label.
 
-### Buttons
-```tsx
-// Primary action
-<Button size="lg" className="h-12 w-12 rounded-full shadow-glow">
-  <Plus className="h-6 w-6" />
-</Button>
+### 5.2 Mandatory Fields [18:25]
 
-// Secondary
-<Button variant="outline">Action</Button>
+- **File:** `components/admin/crm/portfolio-import-dialog.tsx`
+- **Task:** Validation.
+- **Fix:** Remove `required` attribute from all fields **except** "Company Name" and "Portfolio ID".
 
-// Link button
-<Button asChild variant="ghost" size="sm">
-  <Link href="/path">Label</Link>
-</Button>
-```
+### 5.3 Subscription Toggle [19:53]
 
-### Forms
-```tsx
-<Input
-  placeholder="Placeholder text"
-  className="bg-black/20 border-border/50"
-/>
+- **File:** `components/admin/crm/investor-profile-form.tsx`
+- **Task:** Add checkbox.
+- **Fix:** Ensure `subscribed_portfolio_briefing` boolean toggle is visible in the form.
 
-<Select>
-  <SelectTrigger className="bg-black/20 border-border/50">
-    <SelectValue placeholder="Choose..." />
-  </SelectTrigger>
-  <SelectContent className="glass-panel">
-    <SelectItem value="option">Option</SelectItem>
-  </SelectContent>
-</Select>
-```
+### 5.4 Quick Add Investor Profile [25:07]
 
-### Dialogs/Popovers
-```tsx
-<Dialog>
-  <DialogTrigger asChild>
-    <Button>Open</Button>
-  </DialogTrigger>
-  <DialogContent className="glass-panel">
-    <DialogHeader>
-      <DialogTitle>Title</DialogTitle>
-    </DialogHeader>
-    {/* content */}
-  </DialogContent>
-</Dialog>
-```
+- **File:** `app/(admin)/customers/page.tsx`
+- **Task:** Shortcut.
+- **Fix:** Add "Add Investor Profile" button to the Customers table row actions (or `QuickActionButton`). It should open `InvestorProfileForm` pre-filled with that customer.
+
+### 5.5 Visual Import Refinement (Gemini) [16:03]
+
+- **File:** `lib/gemini.ts` / `portfolio-import-dialog.tsx`
+- **Task:** Improve parsing.
+- **Fix:** Review the prompt sent to Gemini/LLM for PDF/Screenshot parsing. Ensure it maps "Quantity" to `shares` and "Cost Basis" to `avg_cost`.
 
 ---
 
-## Accessibility (CRITICAL)
+## 🛠️ Workstream 6: Operations & Tasks
 
-| Rule | Implementation |
-|------|----------------|
-| **Color contrast** | Minimum 4.5:1 ratio — use `text-white` or `text-muted-foreground` |
-| **Focus states** | All interactive elements must have visible focus rings |
-| **Keyboard nav** | Tab order matches visual order |
-| **Form labels** | Use `<Label htmlFor="id">` with matching input `id` |
-| **ARIA labels** | Add `aria-label` for icon-only buttons |
+**Focus:** Workflow efficiency.
 
----
+### 6.1 Status Change [22:49]
 
-## Layout Rules
+- **File:** `app/(admin)/operations/page.tsx`
+- **Task:** Inline status edit.
+- **Fix:** Replace text status in table with a `<Select>` or `<DropdownMenu>` to update status directly.
 
-| Rule | Do | Don't |
-|------|----|----- |
-| **Max width** | Use `max-w-7xl` consistently | Mix different container widths |
-| **Spacing** | Use `space-y-10` between sections, `gap-6` for grids | Inconsistent spacing |
-| **Responsive** | Use `grid-cols-1 md:grid-cols-2 xl:grid-cols-4` | Fixed columns that break on mobile |
-| **Z-index** | Define z-index scale (10, 20, 30, 50) | Random z-index values |
+### 6.2 QA Checklist [23:21]
 
----
+- **File:** `components/admin/operations/qa-checklist.tsx` (New)
+- **Task:** Podcast review checklist.
+- **Fix:** Simple checklist popup: "Audio checked", "Show notes complete", "Links verified".
 
-## Typography
+### 6.3 Dynamic Action Button [23:52]
 
-| Element | Classes |
-|---------|---------|
-| Page headers | `headline-serif text-lg` |
-| Section labels | `label-mono text-xs text-muted-foreground` |
-| Card titles | `text-2xl font-semibold` |
-| Body text | `text-sm font-medium` |
-| Muted text | `text-xs text-muted-foreground` |
-| Accent text | `text-xs text-accent` |
+- **File:** `app/(admin)/operations/page.tsx`
+- **Task:** Button state machine.
+- **Fix:**
+  - If status = 'To Create' → Show "Generate Podcast"
+  - If status = 'Created' → Show "Review Podcast" (Link)
+  - If status = 'Reviewed' → Show "Send Podcast"
 
----
+### 6.4 Mark As Done [25:36]
 
-## Badge Variants
+- **File:** `components/admin/tasks/task-manager.tsx`
+- **Task:** UI Check.
+- **Fix:** Ensure clicking the checkbox visual clearly marks it as done (strikethrough/opacity) and updates DB.
 
-```tsx
-<Badge variant="default">Default</Badge>
-<Badge variant="success">Success</Badge>
-<Badge variant="warning">Warning</Badge>
-<Badge variant="danger">Danger</Badge>
-```
+### 6.5 Task Assignment Fields [25:56]
 
----
+- **File:** `components/admin/tasks/task-manager.tsx`
+- **Task:** Form completeness.
+- **Fix:** Add fields to Task creation form:
+  - **Category**: Sales, Finance, etc.
+  - **Product**: Dropdown
+  - **Priority**: Low/Medium/High
+  - **Date**: DatePicker
 
-## Pre-Delivery Checklist
+### 6.6 Upcoming Tasks [26:37]
 
-Before delivering any component, verify:
-
-### Visual Quality
-- [ ] No emojis used as icons (use Lucide SVG instead)
-- [ ] All icons from Lucide icon set
-- [ ] Hover states don't cause layout shift
-- [ ] Glass panels use correct opacity (`bg-white/5` for dark mode)
-
-### Interaction
-- [ ] All clickable elements have `cursor-pointer`
-- [ ] Hover states provide visual feedback
-- [ ] Transitions are smooth (150-300ms)
-- [ ] Loading states show spinner
-
-### Accessibility
-- [ ] All form inputs have labels
-- [ ] Focus states visible for keyboard navigation
-- [ ] Color is not the only indicator
-
-### Layout
-- [ ] Responsive at 375px, 768px, 1024px, 1440px
-- [ ] No horizontal scroll on mobile
-- [ ] Consistent spacing with existing pages
-
----
-
-# Verification Checklist
-
-- [ ] Team section accessible from sidebar
-- [ ] Team member profiles display correctly
-- [ ] Can add/edit team members
-- [ ] "Set Reminder" appears in + menu
-- [ ] Reminder sets `reminder_date` and updates `action_status`
-- [ ] Customers sub-nav properly isolates views
-- [ ] Overview stats display at top of Customers page
-- [ ] Checklist ⓘ popup works
-- [ ] Filters work (industry, type, product)
-- [ ] Tasks view shows action_status-based tasks
-- [ ] Upcoming view shows future start_date customers
-- [ ] `npm run build` passes with no errors
+- **File:** `components/admin/tasks/task-manager.tsx`
+- **Task:** Filter logic.
+- **Fix:** Ensure "Upcoming" view filters where `due_date >= today` and sorts ascending.

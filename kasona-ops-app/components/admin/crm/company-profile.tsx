@@ -74,6 +74,13 @@ export function CompanyProfile({ customer, profiles, assets, contacts, links }: 
     start_date: customer.start_date ?? "",
     end_date: customer.end_date ?? "",
   });
+  const [salesDraft, setSalesDraft] = useState<{
+    expected_deal_value: string;
+    probability: string;
+  }>({
+    expected_deal_value: customer.expected_deal_value?.toString() ?? "",
+    probability: customer.probability?.toString() ?? "",
+  });
   const [selectedProfile, setSelectedProfile] = useState<InvestorProfile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -182,6 +189,36 @@ export function CompanyProfile({ customer, profiles, assets, contacts, links }: 
       router.refresh();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Unable to save finance snapshot");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveSalesSnapshot = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const expectedDealValue = salesDraft.expected_deal_value.trim()
+        ? Number(salesDraft.expected_deal_value)
+        : null;
+      const probability = salesDraft.probability.trim() ? Number(salesDraft.probability) : null;
+      const response = await fetch(`/api/customers/${customer.company_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expected_deal_value: Number.isFinite(expectedDealValue) ? expectedDealValue : null,
+          probability: Number.isFinite(probability) ? probability : null,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Unable to save sales snapshot");
+      }
+
+      router.refresh();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save sales snapshot");
     } finally {
       setIsSaving(false);
     }
@@ -429,6 +466,62 @@ export function CompanyProfile({ customer, profiles, assets, contacts, links }: 
             <div>Billing Email: {customer.billing_email ?? "-"}</div>
             <div>Billing Address: {customer.billing_address ?? "-"}</div>
             <div>Term: {customer.start_date ?? "-"} → {customer.end_date ?? "-"}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="sales-snapshot" className="scroll-mt-28 p-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Sales Snapshot</CardTitle>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 cursor-pointer">
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="glass-panel max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Edit Sales Snapshot</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Expected Deal Value</div>
+                  <input
+                    type="number"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3"
+                    value={salesDraft.expected_deal_value}
+                    onChange={(event) => setSalesDraft((prev) => ({ ...prev, expected_deal_value: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Probability (%)</div>
+                  <input
+                    type="number"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3"
+                    value={salesDraft.probability}
+                    onChange={(event) => setSalesDraft((prev) => ({ ...prev, probability: event.target.value }))}
+                  />
+                </div>
+              </div>
+              {saveError && <div className="text-sm text-red-300">{saveError}</div>}
+              <div className="flex justify-end">
+                <Button onClick={saveSalesSnapshot} disabled={isSaving} className="gap-2 cursor-pointer">
+                  {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Save
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1 text-sm">
+            <div>Expected Deal Value: {customer.expected_deal_value ?? "-"}</div>
+            <div>Probability: {customer.probability ? `${customer.probability}%` : "-"}</div>
+          </div>
+          <div className="space-y-1 text-sm">
+            <div>Status: {customer.status ?? "-"}</div>
+            <div>Action Status: {customer.action_status ?? "-"}</div>
           </div>
         </CardContent>
       </Card>

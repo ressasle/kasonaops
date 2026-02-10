@@ -69,6 +69,7 @@ type InvestorProfileFormData = {
     buy_box_trigger_2: string;
     buy_box_trigger_3: string;
     noise_filter: string;
+    subscribed_portfolio_briefing: boolean;
 };
 
 type DnaKey = "data_granularity" | "action_frequency" | "decision_logic" | "risk_appetite";
@@ -99,6 +100,7 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
         buy_box_trigger_2: "",
         buy_box_trigger_3: "",
         noise_filter: "",
+        subscribed_portfolio_briefing: false,
     });
 
     const handleChange = (field: string, value: any) => {
@@ -127,6 +129,7 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                 buy_box_trigger_2: formData.buy_box_trigger_2 || null,
                 buy_box_trigger_3: formData.buy_box_trigger_3 || null,
                 noise_filter: formData.noise_filter || null,
+                subscribed_portfolio_briefing: formData.subscribed_portfolio_briefing,
             };
 
             const response = await fetch("/api/investor-profiles", {
@@ -187,6 +190,19 @@ export function InvestorProfileForm({ companyId, onSuccess, onSkip }: InvestorPr
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-black/20 p-3">
+                        <input
+                            id="subscribed-portfolio-briefing"
+                            type="checkbox"
+                            checked={formData.subscribed_portfolio_briefing}
+                            onChange={(e) => handleChange("subscribed_portfolio_briefing", e.target.checked)}
+                            className="h-4 w-4 cursor-pointer"
+                        />
+                        <Label htmlFor="subscribed-portfolio-briefing" className="cursor-pointer">
+                            Subscribed to Portfolio Briefing
+                        </Label>
                     </div>
 
                     <div className="space-y-2">
