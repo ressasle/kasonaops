@@ -10,6 +10,7 @@ Ensure any team member can run sales to onboarding without loss of context.
 - Investor profile sliders (data granularity, action frequency, risk appetite, decision logic)
 - Output format and cadence
 - Latest delivery asset link
+- Add as ingestion an inbox system where we forward mail to a AI knowledge based on different newsletters subscribed
 
 ## Checklist
 1. Confirm `customer_basic_info.status` and `action_status` are current.
@@ -22,3 +23,5 @@ Ensure any team member can run sales to onboarding without loss of context.
 - Missing email or portfolio data
 - No decision logic set (defaults to 3)
 - Product status stuck in "to review" for > 5 days
+
+
